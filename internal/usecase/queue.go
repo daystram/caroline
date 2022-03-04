@@ -3,6 +3,8 @@ package usecase
 import (
 	"time"
 
+	"github.com/bwmarrin/discordgo"
+
 	"github.com/daystram/carol/internal/domain"
 )
 
@@ -20,11 +22,12 @@ type queueUseCase struct {
 
 var _ domain.QueueUseCase = (*queueUseCase)(nil)
 
-func (u *queueUseCase) AddQuery(guildID string, query, userID string) error {
+func (u *queueUseCase) AddQuery(guildID string, query string, user *discordgo.User) error {
 	err := u.queueRepo.InsertOne(guildID, &domain.Music{
-		Query:    query,
-		QueuedAt: time.Now(),
-		QueuedBy: userID,
+		Query:            query,
+		QueuedAt:         time.Now(),
+		QueuedByID:       user.ID,
+		QueuedByUsername: user.Username,
 	})
 	if err != nil {
 		return err

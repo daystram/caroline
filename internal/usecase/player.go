@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -82,7 +83,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker) error {
 	}()
 
 	for {
-		entry, err := u.queueRepo.PopMusic(sp.GuildID)
+		entry, err := u.queueRepo.NextMusic(sp.GuildID)
 		if err != nil {
 			return err
 		}
@@ -92,15 +93,28 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker) error {
 
 		music, err := u.musicRepo.SearchOne(entry.Query)
 		if err != nil {
-			return err
+			_, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
+				Title:       "Not Found",
+				Description: fmt.Sprintf("Could not find `%s`", entry.Query),
+			})
+			if err != nil {
+				log.Println("command: queue:", err)
+			}
+			continue
 		}
 
 		surl, err := u.musicRepo.GetStreamURL(music)
 		if err != nil {
-			return err
+			_, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
+				Description: "Failed retrieving stream URL!",
+			})
+			if err != nil {
+				log.Println("command: queue:", err)
+			}
+			continue
 		}
 
-		user, err := s.User(entry.QueuedBy)
+		user, err := s.User(entry.QueuedByID)
 		if err != nil {
 			return err
 		}
@@ -112,6 +126,11 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker) error {
 					Name:   "Source",
 					Value:  music.URL,
 					Inline: false,
+				},
+				{
+					Name:   "Duration",
+					Value:  music.Duration.String(),
+					Inline: true,
 				},
 				{
 					Name:   "Queued By",

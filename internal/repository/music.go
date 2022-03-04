@@ -10,6 +10,7 @@ import (
 	"google.golang.org/api/youtube/v3"
 
 	"github.com/daystram/carol/internal/domain"
+	"github.com/daystram/carol/internal/util"
 )
 
 const youtubeURLPattern = "https://www.youtube.com/watch?v="
@@ -37,21 +38,12 @@ func (r *musicRepository) SearchOne(query string) (*domain.Music, error) {
 	// TODO: other providers
 	query = strings.TrimSpace(query)
 
+	var videoID string
 	switch {
 	case strings.HasPrefix(query, youtubeURLPattern):
-		resp, err := r.ytAPI.Videos.List([]string{"id", "snippet"}).Id(strings.TrimPrefix(query, youtubeURLPattern)).Do()
-		if err != nil {
-			return nil, err
-		}
-
-		return &domain.Music{
-			Query:     query,
-			Title:     resp.Items[0].Snippet.Title,
-			URL:       fmt.Sprintf("%s%s", youtubeURLPattern, resp.Items[0].Id),
-			Thumbnail: resp.Items[0].Snippet.Thumbnails.High.Url,
-		}, nil
+		videoID = strings.TrimPrefix(query, youtubeURLPattern)
 	default:
-		resp, err := r.ytAPI.Search.List([]string{"id", "snippet"}).Q(query).MaxResults(1).Do()
+		resp, err := r.ytAPI.Search.List([]string{"id"}).Q(query).MaxResults(1).Do()
 		if err != nil {
 			return nil, err
 		}
@@ -59,13 +51,23 @@ func (r *musicRepository) SearchOne(query string) (*domain.Music, error) {
 			return nil, domain.ErrMusicNotFound
 		}
 
-		return &domain.Music{
-			Query:     query,
-			Title:     resp.Items[0].Snippet.Title,
-			URL:       fmt.Sprintf("%s%s", youtubeURLPattern, resp.Items[0].Id.VideoId),
-			Thumbnail: resp.Items[0].Snippet.Thumbnails.High.Url,
-		}, nil
+		videoID = resp.Items[0].Id.VideoId
 	}
+	resp, err := r.ytAPI.Videos.List([]string{"id", "snippet", "contentDetails"}).Id(videoID).Do()
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Items) == 0 {
+		return nil, domain.ErrMusicNotFound
+	}
+
+	return &domain.Music{
+		Query:     query,
+		Title:     resp.Items[0].Snippet.Title,
+		URL:       fmt.Sprintf("%s%s", youtubeURLPattern, resp.Items[0].Id),
+		Thumbnail: resp.Items[0].Snippet.Thumbnails.High.Url,
+		Duration:  util.ParseYouTubeDuration(resp.Items[0].ContentDetails.Duration),
+	}, nil
 }
 
 func (r *musicRepository) GetStreamURL(music *domain.Music) (string, error) {

@@ -27,18 +27,19 @@ func (r *queueRepository) InsertOne(guildID string, music *domain.Music) error {
 
 	if _, ok := r.queues[guildID]; !ok {
 		r.queues[guildID] = &domain.Queue{
-			GuildID: guildID,
-			Entries: make([]*domain.Music, 0),
+			GuildID:      guildID,
+			Tracks:       make([]*domain.Music, 0),
+			CurrentTrack: -1,
 		}
 	}
 
 	q := r.queues[guildID]
-	q.Entries = append(q.Entries, music) // TODO: append modes
+	q.Tracks = append(q.Tracks, music) // TODO: insert modes
 
 	return nil
 }
 
-func (r *queueRepository) PopMusic(guildID string) (*domain.Music, error) {
+func (r *queueRepository) NextMusic(guildID string) (*domain.Music, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -46,14 +47,13 @@ func (r *queueRepository) PopMusic(guildID string) (*domain.Music, error) {
 	if !ok {
 		return nil, domain.ErrNotPlaying
 	}
-	if len(q.Entries) == 0 {
+	if q.CurrentTrack == len(q.Tracks)-1 {
 		return nil, nil // end of queue
 	}
 
-	m := q.Entries[0]
-	q.Entries = q.Entries[1:]
+	q.CurrentTrack++
 
-	return m, nil
+	return q.NowPlaying(), nil
 }
 
 func (r *queueRepository) GetOneByGuildID(guildID string) (*domain.Queue, error) {
