@@ -36,7 +36,8 @@ type speaker struct {
 	StatusChannel *discordgo.Channel
 	Conn          *discordgo.VoiceConnection
 	Status        domain.PlayerStatus
-	stop          chan bool
+
+	action chan domain.PlayerAction
 }
 
 func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) error {
@@ -55,6 +56,7 @@ func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) 
 			StatusChannel: sch,
 			Status:        domain.PlayerStatusStopped,
 			Conn:          conn,
+			action:        make(chan domain.PlayerAction),
 		}
 
 	}
@@ -73,6 +75,24 @@ func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) 
 		}()
 	}
 
+	return nil
+}
+
+func (u *playerUseCase) Stop(s *discordgo.Session, vch *discordgo.Channel) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+
+	sp, ok := u.speakers[vch.GuildID]
+	if !ok {
+		return domain.ErrNotPlaying
+	}
+
+	if sp.VoiceChannel.ID != vch.ID {
+		return domain.ErrAlreadyPlayingOtherChannel
+	}
+
+	sp.action <- domain.PlayerActionStop
+	log.Println("player: stopped")
 	return nil
 }
 
@@ -155,6 +175,25 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker) error {
 			log.Println("player:", err)
 		}
 
-		dgvoice.PlayAudioFile(sp.Conn, surl, sp.stop) // blocking
+		stop := make(chan bool)
+		next := make(chan bool)
+		go func() {
+			dgvoice.PlayAudioFile(sp.Conn, surl, stop)
+			next <- true
+		}()
+
+	wait:
+		for {
+			select {
+			case act := <-sp.action:
+				switch act {
+				case domain.PlayerActionStop:
+					stop <- true
+					return nil
+				}
+			case <-next:
+				break wait
+			}
+		}
 	}
 }

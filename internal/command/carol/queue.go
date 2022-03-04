@@ -49,7 +49,7 @@ func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 			return
 		}
 		if err != nil {
-			log.Println("command: play:", err)
+			log.Println("command: queue:", err)
 			return
 		}
 
@@ -78,7 +78,7 @@ func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 			},
 		})
 		if err != nil {
-			log.Println("player:", err)
+			log.Println("command: queue:", err)
 		}
 	}
 }

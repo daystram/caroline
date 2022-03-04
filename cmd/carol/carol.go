@@ -37,7 +37,6 @@ func Main(args []string) error {
 	if err != nil {
 		return err
 	}
-
 	queueRepo, err := repository.NewQueueRepository(musicRepo)
 	if err != nil {
 		return err
@@ -47,12 +46,10 @@ func Main(args []string) error {
 	if err != nil {
 		return err
 	}
-
 	playerUC, err := usecase.NewPlayerUseCase(musicRepo, queueRepo)
 	if err != nil {
 		return err
 	}
-
 	queueUC, err := usecase.NewQueueUseCase(musicRepo, queueRepo)
 	if err != nil {
 		return err
@@ -65,6 +62,7 @@ func Main(args []string) error {
 
 	defer func() {
 		log.Println("exit: server stopping")
+		_ = command.UnregisterAll(srv)
 		err := srv.Stop()
 		if err != nil {
 			log.Print("exit:", err)

@@ -18,7 +18,7 @@ func FormatQueue(q *domain.Queue) string {
 		} else {
 			out += fmt.Sprintf(" %d  ", i+1)
 		}
-		out += fmt.Sprintf("%16.16s    (%s) [@%s]\n", t.Query, t.Duration, t.QueuedByUsername)
+		out += fmt.Sprintf("%16.16s    [@%s]\n", t.Query, t.QueuedByUsername)
 	}
 	out += "```"
 	return out

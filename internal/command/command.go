@@ -16,6 +16,7 @@ func commands() []RegisterFunc {
 	return []RegisterFunc{
 		carol.RegisterPlay,
 		carol.RegisterQueue,
+		carol.RegisterStop,
 	}
 }
 
@@ -39,6 +40,19 @@ func RegisterAll(srv *server.Server) error {
 	srv.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		log.Println(fmt.Sprintf("command: %s:", i.ApplicationCommandData().Name), i.Member.User.Username)
 	})
+
+	return nil
+}
+
+func UnregisterAll(srv *server.Server) error {
+	cmds, err := srv.Session.ApplicationCommands(srv.Session.State.User.ID, "")
+	if err != nil {
+		return err
+	}
+
+	for _, c := range cmds {
+		_ = srv.Session.ApplicationCommandDelete(srv.Session.State.User.ID, "", c.ID)
+	}
 
 	return nil
 }
