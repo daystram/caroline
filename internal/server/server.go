@@ -1,0 +1,47 @@
+package server
+
+import (
+	"fmt"
+
+	"github.com/bwmarrin/discordgo"
+
+	"github.com/daystram/carol/internal/config"
+	"github.com/daystram/carol/internal/domain"
+)
+
+type Server struct {
+	Session *discordgo.Session
+
+	UC useCases
+}
+
+type useCases struct {
+	Music  domain.MusicUseCase
+	Player domain.PlayerUseCase
+	Queue  domain.QueueUseCase
+}
+
+func Start(cfg *config.Config, musicUC domain.MusicUseCase, playerUC domain.PlayerUseCase, queueUC domain.QueueUseCase) (*Server, error) {
+	s, err := discordgo.New(fmt.Sprintf("Bot %s", cfg.BotToken))
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Server{
+		Session: s,
+		UC: useCases{
+			Music:  musicUC,
+			Player: playerUC,
+			Queue:  queueUC,
+		},
+	}, nil
+}
+
+func (s *Server) Stop() error {
+	return s.Session.Close()
+}
