@@ -6,17 +6,17 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/daystram/carol/internal/command/carol"
-	"github.com/daystram/carol/internal/server"
+	"github.com/daystram/caroline/internal/command/caroline"
+	"github.com/daystram/caroline/internal/server"
 )
 
 type RegisterFunc func(*server.Server, map[string]func(*discordgo.Session, *discordgo.InteractionCreate)) error
 
 func commands() []RegisterFunc {
 	return []RegisterFunc{
-		carol.RegisterPlay,
-		carol.RegisterQueue,
-		carol.RegisterStop,
+		caroline.RegisterPlay,
+		caroline.RegisterQueue,
+		caroline.RegisterStop,
 	}
 }
 

@@ -3,7 +3,7 @@ package repository
 import (
 	"sync"
 
-	"github.com/daystram/carol/internal/domain"
+	"github.com/daystram/caroline/internal/domain"
 )
 
 func NewQueueRepository(musicRepo domain.MusicRepository) (domain.QueueRepository, error) {

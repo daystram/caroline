@@ -1,7 +1,7 @@
 package usecase
 
 import (
-	"github.com/daystram/carol/internal/domain"
+	"github.com/daystram/caroline/internal/domain"
 )
 
 func NewMusicUseCase(musicRepo domain.MusicRepository) (domain.MusicUseCase, error) {

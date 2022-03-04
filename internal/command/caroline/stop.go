@@ -1,4 +1,4 @@
-package carol
+package caroline
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/daystram/carol/internal/server"
+	"github.com/daystram/caroline/internal/server"
 )
 
 const stopCommandName = "stop"
@@ -35,7 +35,7 @@ func stopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Data: &discordgo.InteractionResponseData{
 					Embeds: []*discordgo.MessageEmbed{
 						{
-							Description: "You have to be in a voice channel to stop Carol!",
+							Description: "You have to be in a voice channel to stop caroline!",
 						},
 					},
 				},

@@ -5,8 +5,8 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/daystram/carol/internal/config"
-	"github.com/daystram/carol/internal/domain"
+	"github.com/daystram/caroline/internal/config"
+	"github.com/daystram/caroline/internal/domain"
 )
 
 type Server struct {

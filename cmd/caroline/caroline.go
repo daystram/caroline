@@ -6,11 +6,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/daystram/carol/internal/command"
-	"github.com/daystram/carol/internal/config"
-	"github.com/daystram/carol/internal/repository"
-	"github.com/daystram/carol/internal/server"
-	"github.com/daystram/carol/internal/usecase"
+	"github.com/daystram/caroline/internal/command"
+	"github.com/daystram/caroline/internal/config"
+	"github.com/daystram/caroline/internal/repository"
+	"github.com/daystram/caroline/internal/server"
+	"github.com/daystram/caroline/internal/usecase"
 )
 
 func init() {

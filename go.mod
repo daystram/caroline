@@ -1,4 +1,4 @@
-module github.com/daystram/carol
+module github.com/daystram/caroline
 
 go 1.17
 

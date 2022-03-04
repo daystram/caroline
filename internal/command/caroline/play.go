@@ -1,4 +1,4 @@
-package carol
+package caroline
 
 import (
 	"errors"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/daystram/carol/internal/server"
+	"github.com/daystram/caroline/internal/server"
 )
 
 const playCommandName = "play"

@@ -1,4 +1,4 @@
-package carol
+package caroline
 
 import (
 	"errors"
@@ -7,9 +7,9 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/daystram/carol/internal/domain"
-	"github.com/daystram/carol/internal/server"
-	"github.com/daystram/carol/internal/util"
+	"github.com/daystram/caroline/internal/domain"
+	"github.com/daystram/caroline/internal/server"
+	"github.com/daystram/caroline/internal/util"
 )
 
 const queueCommandName = "queue"

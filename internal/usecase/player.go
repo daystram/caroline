@@ -9,7 +9,7 @@ import (
 	"github.com/bwmarrin/dgvoice"
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/daystram/carol/internal/domain"
+	"github.com/daystram/caroline/internal/domain"
 )
 
 func NewPlayerUseCase(musicRepo domain.MusicRepository, queueRepo domain.QueueRepository) (domain.PlayerUseCase, error) {

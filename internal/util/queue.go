@@ -3,7 +3,7 @@ package util
 import (
 	"fmt"
 
-	"github.com/daystram/carol/internal/domain"
+	"github.com/daystram/caroline/internal/domain"
 )
 
 func FormatQueue(q *domain.Queue) string {

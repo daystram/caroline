@@ -9,8 +9,8 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/youtube/v3"
 
-	"github.com/daystram/carol/internal/domain"
-	"github.com/daystram/carol/internal/util"
+	"github.com/daystram/caroline/internal/domain"
+	"github.com/daystram/caroline/internal/util"
 )
 
 const youtubeURLPattern = "https://www.youtube.com/watch?v="
