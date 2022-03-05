@@ -11,8 +11,9 @@ import (
 
 type Server struct {
 	Session *discordgo.Session
+	UC      useCases
 
-	UC useCases
+	DebugGuildID string
 }
 
 type useCases struct {
@@ -39,6 +40,7 @@ func Start(cfg *config.Config, musicUC domain.MusicUseCase, playerUC domain.Play
 			Player: playerUC,
 			Queue:  queueUC,
 		},
+		DebugGuildID: cfg.DebugGuildID,
 	}, nil
 }
 

@@ -2,7 +2,6 @@ package caroline
 
 import (
 	"errors"
-	"fmt"
 	"log"
 
 	"github.com/bwmarrin/discordgo"
@@ -15,7 +14,7 @@ import (
 const queueCommandName = "queue"
 
 func RegisterQueue(srv *server.Server, interactionHandlers map[string]func(*discordgo.Session, *discordgo.InteractionCreate)) error {
-	_, err := srv.Session.ApplicationCommandCreate(srv.Session.State.User.ID, "", &discordgo.ApplicationCommand{
+	_, err := srv.Session.ApplicationCommandCreate(srv.Session.State.User.ID, srv.DebugGuildID, &discordgo.ApplicationCommand{
 		Name:        queueCommandName,
 		Description: "View playing queue",
 		Options: []*discordgo.ApplicationCommandOption{

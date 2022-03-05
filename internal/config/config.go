@@ -8,6 +8,7 @@ import (
 type Config struct {
 	BotToken      string
 	YouTubeAPIKey string
+	DebugGuildID  string
 }
 
 func Load() (*Config, error) {
@@ -21,6 +22,8 @@ func Load() (*Config, error) {
 	if c.YouTubeAPIKey, found = os.LookupEnv("YT_API_KEY"); !found {
 		return nil, errors.New("YT_API_KEY not specified")
 	}
+
+	c.DebugGuildID, _ = os.LookupEnv("DEBUG_GUILD_ID")
 
 	return c, nil
 }

@@ -12,7 +12,7 @@ import (
 const stopCommandName = "stop"
 
 func RegisterStop(srv *server.Server, interactionHandlers map[string]func(*discordgo.Session, *discordgo.InteractionCreate)) error {
-	_, err := srv.Session.ApplicationCommandCreate(srv.Session.State.User.ID, "", &discordgo.ApplicationCommand{
+	_, err := srv.Session.ApplicationCommandCreate(srv.Session.State.User.ID, srv.DebugGuildID, &discordgo.ApplicationCommand{
 		Name:        stopCommandName,
 		Description: "Stop currently playing music",
 	})
@@ -35,7 +35,7 @@ func stopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Data: &discordgo.InteractionResponseData{
 					Embeds: []*discordgo.MessageEmbed{
 						{
-							Description: "You have to be in a voice channel to stop caroline!",
+							Description: "You have to be in a voice channel to stop Caroline!",
 						},
 					},
 				},

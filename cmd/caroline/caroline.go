@@ -33,6 +33,10 @@ func Main(args []string) error {
 		return err
 	}
 
+	if cfg.DebugGuildID != "" {
+		log.Println("init: development mode: guildID:", cfg.DebugGuildID)
+	}
+
 	musicRepo, err := repository.NewMusicRepository(cfg.YouTubeAPIKey)
 	if err != nil {
 		return err

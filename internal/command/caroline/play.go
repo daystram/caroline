@@ -13,7 +13,7 @@ import (
 const playCommandName = "play"
 
 func RegisterPlay(srv *server.Server, interactionHandlers map[string]func(*discordgo.Session, *discordgo.InteractionCreate)) error {
-	_, err := srv.Session.ApplicationCommandCreate(srv.Session.State.User.ID, "", &discordgo.ApplicationCommand{
+	_, err := srv.Session.ApplicationCommandCreate(srv.Session.State.User.ID, srv.DebugGuildID, &discordgo.ApplicationCommand{
 		Name:        playCommandName,
 		Description: "Search and play music",
 		Options: []*discordgo.ApplicationCommandOption{
