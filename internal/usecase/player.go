@@ -86,6 +86,17 @@ func (u *playerUseCase) Stop(s *discordgo.Session, vch *discordgo.Channel) error
 	return nil
 }
 
+func (u *playerUseCase) StopAll(s *discordgo.Session) {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+
+	for _, sp := range u.speakers {
+		if sp.Status != domain.PlayerStatusUninitialized {
+			sp.action <- domain.PlayerActionStop
+		}
+	}
+}
+
 func (u *playerUseCase) Jump(s *discordgo.Session, vch *discordgo.Channel, pos int) error {
 	u.lock.Lock()
 	defer u.lock.Unlock()

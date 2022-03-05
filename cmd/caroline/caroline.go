@@ -74,12 +74,12 @@ func Main(args []string) error {
 		}
 	}()
 
-	log.Println("init: server started")
-
 	err = command.RegisterAll(srv)
 	if err != nil {
 		return err
 	}
+
+	log.Println("init: server started")
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
