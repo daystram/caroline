@@ -23,7 +23,7 @@ type queueUseCase struct {
 var _ domain.QueueUseCase = (*queueUseCase)(nil)
 
 func (u *queueUseCase) AddQuery(guildID string, query string, user *discordgo.User) error {
-	err := u.queueRepo.InsertOne(guildID, &domain.Music{
+	err := u.queueRepo.Enqueue(guildID, &domain.Music{
 		Query:            query,
 		QueuedAt:         time.Now(),
 		QueuedByID:       user.ID,

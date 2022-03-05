@@ -3,16 +3,16 @@ package domain
 import "github.com/bwmarrin/discordgo"
 
 type Queue struct {
-	GuildID      string
-	Tracks       []*Music
-	CurrentTrack int
+	GuildID    string
+	Tracks     []*Music
+	CurrentPos int
 }
 
 func (q *Queue) NowPlaying() *Music {
-	if q == nil || q.CurrentTrack < 0 || q.CurrentTrack > len(q.Tracks)-1 {
+	if q == nil || q.CurrentPos < 0 || q.CurrentPos > len(q.Tracks)-1 {
 		return nil
 	}
-	return q.Tracks[q.CurrentTrack]
+	return q.Tracks[q.CurrentPos]
 }
 
 type QueueUseCase interface {
@@ -21,7 +21,8 @@ type QueueUseCase interface {
 }
 
 type QueueRepository interface {
-	InsertOne(guildID string, music *Music) error
-	NextMusic(guildID string) (*Music, error)
+	Enqueue(guildID string, music *Music) error
+	Pop(guildID string) (*Music, error)
+	JumpPos(guildID string, pos int) error
 	GetOneByGuildID(guildID string) (*Queue, error)
 }

@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 
 	"github.com/bwmarrin/discordgo"
@@ -10,7 +11,7 @@ import (
 )
 
 func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.MessageEmbed {
-	if q.CurrentTrack == -1 || len(q.Tracks) == 0 {
+	if q.CurrentPos == -1 || len(q.Tracks) == 0 {
 		return &discordgo.MessageEmbed{
 			Title:       "Queue",
 			Description: "Nothing is playing!",
@@ -20,7 +21,7 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 	qStr := ""
 	const pageSize = 10
 	if page < 1 {
-		page = q.CurrentTrack/pageSize + 1
+		page = q.CurrentPos/pageSize + 1
 	}
 	if (page-1)*pageSize >= len(q.Tracks) {
 		qStr = "No more tracks!"
@@ -28,7 +29,7 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 		pad := len(strconv.Itoa(pageSize * page))
 		for i, t := range q.Tracks[pageSize*(page-1) : pageSize*page] {
 			i += pageSize * (page - 1)
-			if i == q.CurrentTrack {
+			if i == q.CurrentPos {
 				if p.Status == domain.PlayerStatusPlaying {
 					qStr += "__**"
 				} else {
@@ -36,7 +37,7 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 				}
 			}
 			qStr += fmt.Sprintf("`[%*d]  %-30.30s  [@%s]`", pad, i+1, t.Query, t.QueuedByUsername)
-			if i == q.CurrentTrack {
+			if i == q.CurrentPos {
 				if p.Status == domain.PlayerStatusPlaying {
 					qStr += "**__"
 				} else {
@@ -68,4 +69,37 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 			},
 		},
 	}
+}
+
+func ParseJumpPosOption(q *domain.Queue, raw string) (int, error) {
+	abs := regexp.MustCompile("^[0-9]+$")
+	rel := regexp.MustCompile("^[-+][0-9]+$")
+
+	var pos int
+	switch {
+	case abs.MatchString(raw):
+		p, err := strconv.Atoi(raw)
+		if err != nil {
+			return 0, err
+		}
+		pos = p - 1 // fix 0-indexing
+	case rel.MatchString(raw):
+		p, err := strconv.Atoi(raw[1:])
+		if err != nil {
+			return 0, err
+		}
+		if raw[0] == '+' {
+			pos = q.CurrentPos + p
+		} else {
+			pos = q.CurrentPos - p
+		}
+	default:
+		return 0, domain.ErrBadFormat
+	}
+
+	if pos < 0 || pos > len(q.Tracks)-1 {
+		return 0, domain.ErrQueueOutOfBounds
+	}
+
+	return pos, nil
 }

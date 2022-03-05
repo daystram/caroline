@@ -86,6 +86,28 @@ func (u *playerUseCase) Stop(s *discordgo.Session, vch *discordgo.Channel) error
 	return nil
 }
 
+func (u *playerUseCase) Jump(s *discordgo.Session, vch *discordgo.Channel, pos int) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+
+	sp, ok := u.speakers[vch.GuildID]
+	if !ok || sp.Status == domain.PlayerStatusUninitialized {
+		return domain.ErrNotPlaying
+	}
+
+	if sp.VoiceChannel.ID != vch.ID {
+		return domain.ErrInOtherChannel
+	}
+
+	err := u.queueRepo.JumpPos(vch.GuildID, pos-1) // compensate for queueRepo.NextMusic() call after skipping
+	if err != nil {
+		return err
+	}
+
+	sp.action <- domain.PlayerActionSkip
+	return nil
+}
+
 func (u *playerUseCase) Get(guildID string) (*domain.Player, error) {
 	u.lock.RLock()
 	defer u.lock.RUnlock()
@@ -120,7 +142,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 	statusSwitch:
 		switch sp.Status {
 		case domain.PlayerStatusPlaying:
-			entry, err := u.queueRepo.NextMusic(sp.GuildID)
+			entry, err := u.queueRepo.Pop(sp.GuildID)
 			if err != nil {
 				return err
 			}
@@ -177,6 +199,9 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 				select {
 				case act := <-sp.action:
 					switch act {
+					case domain.PlayerActionSkip:
+						stop <- true
+						break waitAudio
 					case domain.PlayerActionStop:
 						stop <- true
 						sp.Status = domain.PlayerStatusStopped
