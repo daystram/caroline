@@ -9,6 +9,7 @@ type PlayerStatus uint
 const (
 	PlayerStatusPlaying PlayerStatus = iota
 	PlayerStatusStopped
+	PlayerStatusUninitialized
 )
 
 type Player struct {
