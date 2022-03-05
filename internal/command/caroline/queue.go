@@ -11,7 +11,7 @@ import (
 	"github.com/daystram/caroline/internal/util"
 )
 
-const queueCommandName = "queue"
+const queueCommandName = "q"
 
 func RegisterQueue(srv *server.Server, interactionHandlers map[string]func(*discordgo.Session, *discordgo.InteractionCreate)) error {
 	_, err := srv.Session.ApplicationCommandCreate(srv.Session.State.User.ID, srv.DebugGuildID, &discordgo.ApplicationCommand{

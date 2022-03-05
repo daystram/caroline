@@ -11,7 +11,7 @@ import (
 	"github.com/daystram/caroline/internal/server"
 )
 
-const playCommandName = "play"
+const playCommandName = "p"
 
 func RegisterPlay(srv *server.Server, interactionHandlers map[string]func(*discordgo.Session, *discordgo.InteractionCreate)) error {
 	_, err := srv.Session.ApplicationCommandCreate(srv.Session.State.User.ID, srv.DebugGuildID, &discordgo.ApplicationCommand{
