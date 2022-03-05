@@ -23,29 +23,38 @@ type queueUseCase struct {
 
 var _ domain.QueueUseCase = (*queueUseCase)(nil)
 
-func (u *queueUseCase) AddQuery(guildID string, query string, user *discordgo.User) error {
+func (u *queueUseCase) AddQuery(guildID string, query string, user *discordgo.User, pos int) (int, error) {
 	_, err := u.queueRepo.GetOneByGuildID(guildID)
 	if errors.Is(err, domain.ErrQueueNotFound) {
 		_, err = u.queueRepo.Create(guildID)
 		if err != nil {
-			return err
+			return -1, err
 		}
 	}
 	if err != nil {
-		return err
+		return -1, err
 	}
 
-	err = u.queueRepo.Enqueue(guildID, &domain.Music{
+	trackNo, err := u.queueRepo.Enqueue(guildID, &domain.Music{
 		Query:            query,
 		QueuedAt:         time.Now(),
 		QueuedByID:       user.ID,
 		QueuedByUsername: user.Username,
 	})
 	if err != nil {
-		return err
+		return -1, err
 	}
 
-	return nil
+	if pos > -1 {
+		err = u.queueRepo.Move(guildID, trackNo, pos)
+		if err != nil {
+			// TODO: remove from queue
+			return -1, err
+		}
+		trackNo = pos
+	}
+
+	return trackNo, nil
 }
 
 func (u *queueUseCase) List(guildID string) (*domain.Queue, error) {

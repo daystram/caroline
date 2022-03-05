@@ -16,14 +16,15 @@ func (q *Queue) NowPlaying() *Music {
 }
 
 type QueueUseCase interface {
-	AddQuery(guildID string, query string, user *discordgo.User) error
+	AddQuery(guildID string, query string, user *discordgo.User, pos int) (int, error)
 	List(guildID string) (*Queue, error)
 }
 
 type QueueRepository interface {
 	Create(guildID string) (*Queue, error)
 	GetOneByGuildID(guildID string) (*Queue, error)
-	Enqueue(guildID string, music *Music) error
+	Enqueue(guildID string, music *Music) (int, error)
 	Pop(guildID string) (*Music, error)
 	JumpPos(guildID string, pos int) error
+	Move(guildID string, track, pos int) error
 }

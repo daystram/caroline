@@ -2,6 +2,7 @@ package caroline
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
+	"github.com/daystram/caroline/internal/util"
 )
 
 const playCommandName = "p"
@@ -23,6 +25,12 @@ func RegisterPlay(srv *server.Server, interactionHandlers map[string]func(*disco
 				Name:        "query",
 				Description: "Search query",
 				Required:    true,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "position",
+				Description: "Insert position",
+				Required:    false,
 			},
 		},
 	})
@@ -60,7 +68,6 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			return
 		}
 
-		// add to queue
 		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
 			log.Println("command: play:", err)
@@ -83,12 +90,53 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			return
 		}
 
+		// parse query and position
 		query, ok := i.ApplicationCommandData().Options[0].Value.(string)
 		if !ok {
 			log.Println("command: play: option type mismatch")
 			return
 		}
 		query = strings.TrimSpace(query)
+
+		q, err := srv.UC.Queue.List(i.GuildID)
+		if err != nil {
+			log.Println("command: play:", err)
+			return
+		}
+
+		pos := -1
+		if len(i.ApplicationCommandData().Options) > 1 {
+			posRaw, ok := i.ApplicationCommandData().Options[1].Value.(string)
+			if !ok {
+				log.Println("command: play: option type mismatch")
+				return
+			}
+			p, err := util.ParseJumpPosOption(q, posRaw)
+			if err != nil {
+				err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Embeds: []*discordgo.MessageEmbed{
+							{
+								Description: "Invalid position!",
+							},
+						},
+					},
+				})
+				if err != nil {
+					log.Println("command: play:", err)
+				}
+				return
+			}
+			pos = p
+		}
+
+		// enqueue
+		pos, err = srv.UC.Queue.AddQuery(i.GuildID, query, i.Member.User, pos)
+		if err != nil {
+			log.Println("command: play:", err)
+			return
+		}
 
 		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -101,21 +149,19 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 							Name:    i.Member.User.Username,
 							IconURL: discordgo.EndpointUserAvatar(i.Member.User.ID, i.Member.User.Avatar),
 						},
+						Fields: []*discordgo.MessageEmbedField{
+							{
+								Name:   "Position",
+								Value:  fmt.Sprintf("%d", pos+1),
+								Inline: true,
+							},
+						},
 					},
 				},
 			},
 		})
 		if err != nil {
 			log.Println("command: play:", err)
-		}
-
-		// TODO: debug
-		for a := 0; a < 10; a++ {
-			err = srv.UC.Queue.AddQuery(i.GuildID, query, i.Member.User)
-			if err != nil {
-				log.Println("command: play:", err)
-				return
-			}
 		}
 
 		// play in voice channel
