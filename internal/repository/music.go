@@ -13,7 +13,10 @@ import (
 	"github.com/daystram/caroline/internal/util"
 )
 
-const youtubeURLPattern = "https://www.youtube.com/watch?v="
+const (
+	youtubeURLPattern1 = "https://www.youtube.com/watch?v="
+	youtubeURLPattern2 = "https://youtu.be/"
+)
 
 func NewMusicRepository(apiKey string) (domain.MusicRepository, error) {
 	api, err := youtube.NewService(context.Background(), option.WithAPIKey(apiKey))
@@ -40,8 +43,10 @@ func (r *musicRepository) SearchOne(query string) (*domain.Music, error) {
 
 	var videoID string
 	switch {
-	case strings.HasPrefix(query, youtubeURLPattern):
-		videoID = strings.TrimPrefix(query, youtubeURLPattern)
+	case strings.HasPrefix(query, youtubeURLPattern1):
+		videoID = strings.TrimPrefix(query, youtubeURLPattern1)
+	case strings.HasPrefix(query, youtubeURLPattern2):
+		videoID = strings.TrimPrefix(query, youtubeURLPattern2)
 	default:
 		resp, err := r.ytAPI.Search.List([]string{"id"}).Q(query).MaxResults(1).Do()
 		if err != nil {
@@ -53,6 +58,7 @@ func (r *musicRepository) SearchOne(query string) (*domain.Music, error) {
 
 		videoID = resp.Items[0].Id.VideoId
 	}
+
 	resp, err := r.ytAPI.Videos.List([]string{"id", "snippet", "contentDetails"}).Id(videoID).Do()
 	if err != nil {
 		return nil, err
@@ -64,7 +70,7 @@ func (r *musicRepository) SearchOne(query string) (*domain.Music, error) {
 	return &domain.Music{
 		Query:     query,
 		Title:     resp.Items[0].Snippet.Title,
-		URL:       fmt.Sprintf("%s%s", youtubeURLPattern, resp.Items[0].Id),
+		URL:       fmt.Sprintf("%s%s", youtubeURLPattern2, resp.Items[0].Id),
 		Thumbnail: resp.Items[0].Snippet.Thumbnails.High.Url,
 		Duration:  util.ParseYouTubeDuration(resp.Items[0].ContentDetails.Duration),
 	}, nil
