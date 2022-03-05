@@ -54,7 +54,12 @@ func npCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interacti
 		}
 
 		// send embed
-		_, err = s.ChannelMessageSendEmbed(i.ChannelID, util.FormatNowPlaying(p.CurrentTrack, p.CurrentUser, p.CurrentStartTime))
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Embeds: []*discordgo.MessageEmbed{util.FormatNowPlaying(p.CurrentTrack, p.CurrentUser, p.CurrentStartTime)},
+			},
+		})
 		if err != nil {
 			log.Println("player:", err)
 		}
