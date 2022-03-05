@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/bwmarrin/discordgo"
 
@@ -17,13 +18,14 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 	}
 
 	qStr := ""
-	const pageSize = 2
+	const pageSize = 10
 	if page < 1 {
 		page = q.CurrentTrack/pageSize + 1
 	}
 	if (page-1)*pageSize >= len(q.Tracks) {
 		qStr = "No more tracks!"
 	} else {
+		pad := len(strconv.Itoa(pageSize * page))
 		for i, t := range q.Tracks[pageSize*(page-1) : pageSize*page] {
 			i += pageSize * (page - 1)
 			if i == q.CurrentTrack {
@@ -33,7 +35,7 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 					qStr += "*"
 				}
 			}
-			qStr += fmt.Sprintf("`[%d]  %-30.30s  [@%s]`", i+1, t.Query, t.QueuedByUsername)
+			qStr += fmt.Sprintf("`[%*d]  %-30.30s  [@%s]`", pad, i+1, t.Query, t.QueuedByUsername)
 			if i == q.CurrentTrack {
 				if p.Status == domain.PlayerStatusPlaying {
 					qStr += "**__"
