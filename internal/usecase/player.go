@@ -32,7 +32,7 @@ type playerUseCase struct {
 var _ domain.PlayerUseCase = (*playerUseCase)(nil)
 
 type speaker struct {
-	domain.Player
+	*domain.Player
 
 	action chan domain.PlayerAction
 }
@@ -44,7 +44,7 @@ func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) 
 	sp, ok := u.speakers[vch.GuildID]
 	if !ok {
 		sp = &speaker{
-			Player: domain.Player{
+			Player: &domain.Player{
 				GuildID: vch.GuildID,
 				Status:  domain.PlayerStatusUninitialized,
 			},
@@ -128,7 +128,7 @@ func (u *playerUseCase) Get(guildID string) (*domain.Player, error) {
 		return nil, domain.ErrNotPlaying
 	}
 
-	return &sp.Player, nil
+	return sp.Player, nil
 }
 
 func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch *discordgo.Channel) error {
