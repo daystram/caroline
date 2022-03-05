@@ -33,6 +33,8 @@ func Start(cfg *config.Config, musicUC domain.MusicUseCase, playerUC domain.Play
 		return nil, err
 	}
 
+	_ = s.UpdateGameStatus(0, "github.com/daystram/caroline")
+
 	return &Server{
 		Session: s,
 		UC: useCases{
