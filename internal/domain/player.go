@@ -39,5 +39,6 @@ type PlayerUseCase interface {
 	Stop(s *discordgo.Session, vch *discordgo.Channel) error
 	StopAll(s *discordgo.Session)
 	Jump(s *discordgo.Session, vch *discordgo.Channel, pos int) error
+	Move(s *discordgo.Session, vch *discordgo.Channel, from, to int) error
 	Get(guildID string) (*Player, error)
 }

@@ -119,6 +119,27 @@ func (u *playerUseCase) Jump(s *discordgo.Session, vch *discordgo.Channel, pos i
 	return nil
 }
 
+func (u *playerUseCase) Move(s *discordgo.Session, vch *discordgo.Channel, from, to int) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+
+	sp, ok := u.speakers[vch.GuildID]
+	if !ok || sp.Status == domain.PlayerStatusUninitialized {
+		return domain.ErrNotPlaying
+	}
+
+	if sp.VoiceChannel.ID != vch.ID {
+		return domain.ErrInOtherChannel
+	}
+
+	err := u.queueRepo.Move(vch.GuildID, from, to)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (u *playerUseCase) Get(guildID string) (*domain.Player, error) {
 	u.lock.RLock()
 	defer u.lock.RUnlock()
