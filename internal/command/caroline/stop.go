@@ -75,6 +75,22 @@ func stopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			}
 			return
 		}
+		if errors.Is(err, domain.ErrNotPlaying) {
+			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Description: "I'm not playing anything right now!",
+						},
+					},
+				},
+			})
+			if err != nil {
+				log.Println("command: stop:", err)
+			}
+			return
+		}
 		if err != nil {
 			log.Println("command: stop:", err)
 			return
