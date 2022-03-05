@@ -14,8 +14,11 @@ import (
 )
 
 const (
-	youtubeURLPattern1 = "https://www.youtube.com/watch?v="
-	youtubeURLPattern2 = "https://youtu.be/"
+	youtubeURLPattern = "https://youtu.be/"
+)
+
+var (
+	youtubeRegex = regexp.MustCompile(`(youtu\.be\/|youtube\.com\/(watch\?(.*&)?v=|(embed|v)\/))(?P<videoID>[^\?&"'>]+)`)
 )
 
 func NewMusicRepository(apiKey string) (domain.MusicRepository, error) {
@@ -43,10 +46,8 @@ func (r *musicRepository) SearchOne(query string) (*domain.Music, error) {
 
 	var videoID string
 	switch {
-	case strings.HasPrefix(query, youtubeURLPattern1):
-		videoID = strings.TrimPrefix(query, youtubeURLPattern1)
-	case strings.HasPrefix(query, youtubeURLPattern2):
-		videoID = strings.TrimPrefix(query, youtubeURLPattern2)
+	case youtubeRegex.MatchString(query):
+		videoID = youtubeRegex.FindStringSubmatch(query)[youtubeRegex.SubexpIndex("videoID")]
 	default:
 		resp, err := r.ytAPI.Search.List([]string{"id"}).Q(query).MaxResults(1).Do()
 		if err != nil {
@@ -70,7 +71,7 @@ func (r *musicRepository) SearchOne(query string) (*domain.Music, error) {
 	return &domain.Music{
 		Query:     query,
 		Title:     resp.Items[0].Snippet.Title,
-		URL:       fmt.Sprintf("%s%s", youtubeURLPattern2, resp.Items[0].Id),
+		URL:       fmt.Sprintf("%s%s", youtubeURLPattern, resp.Items[0].Id),
 		Thumbnail: resp.Items[0].Snippet.Thumbnails.High.Url,
 		Duration:  util.ParseYouTubeDuration(resp.Items[0].ContentDetails.Duration),
 	}, nil
