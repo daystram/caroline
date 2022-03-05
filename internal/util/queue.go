@@ -12,10 +12,7 @@ import (
 
 func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.MessageEmbed {
 	if q.CurrentPos == -1 || len(q.Tracks) == 0 {
-		return &discordgo.MessageEmbed{
-			Title:       "Queue",
-			Description: "Nothing is playing!",
-		}
+		return nil
 	}
 
 	min := func(a, b int) int {
@@ -66,7 +63,7 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 			},
 			{
 				Name:   "Page",
-				Value:  fmt.Sprintf("%d/%d", page, (len(q.Tracks) - 1)/pageSize + 1),
+				Value:  fmt.Sprintf("%d/%d", page, (len(q.Tracks)-1)/pageSize+1),
 				Inline: true,
 			},
 			{

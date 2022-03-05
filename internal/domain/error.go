@@ -9,5 +9,6 @@ var (
 	ErrInOtherChannel   = errors.New("bot is in a different voice channel")
 	ErrMusicNotFound    = errors.New("music not found")
 	ErrNotPlaying       = errors.New("not playing in any voice channels")
+	ErrQueueNotFound    = errors.New("queue not found")
 	ErrQueueOutOfBounds = errors.New("queue out of bounds")
 )

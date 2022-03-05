@@ -21,8 +21,9 @@ type QueueUseCase interface {
 }
 
 type QueueRepository interface {
+	Create(guildID string) (*Queue, error)
+	GetOneByGuildID(guildID string) (*Queue, error)
 	Enqueue(guildID string, music *Music) error
 	Pop(guildID string) (*Music, error)
 	JumpPos(guildID string, pos int) error
-	GetOneByGuildID(guildID string) (*Queue, error)
 }

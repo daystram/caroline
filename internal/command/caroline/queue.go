@@ -1,12 +1,10 @@
 package caroline
 
 import (
-	"errors"
 	"log"
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
 )
@@ -65,13 +63,17 @@ func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 
 		// get queue
 		q, err := srv.UC.Queue.List(i.GuildID)
-		if errors.Is(err, domain.ErrNotPlaying) {
+		if err != nil {
+			log.Println("command: queue:", err)
+			return
+		}
+		if len(q.Tracks) == 0 {
 			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Embeds: []*discordgo.MessageEmbed{
 						{
-							Description: "Nothing is playing!",
+							Description: "I'm not playing anything right now!",
 						},
 					},
 				},
@@ -79,10 +81,6 @@ func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 			if err != nil {
 				log.Println("command: queue:", err)
 			}
-			return
-		}
-		if err != nil {
-			log.Println("command: queue:", err)
 			return
 		}
 

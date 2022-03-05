@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"errors"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -23,7 +24,18 @@ type queueUseCase struct {
 var _ domain.QueueUseCase = (*queueUseCase)(nil)
 
 func (u *queueUseCase) AddQuery(guildID string, query string, user *discordgo.User) error {
-	err := u.queueRepo.Enqueue(guildID, &domain.Music{
+	_, err := u.queueRepo.GetOneByGuildID(guildID)
+	if errors.Is(err, domain.ErrQueueNotFound) {
+		_, err = u.queueRepo.Create(guildID)
+		if err != nil {
+			return err
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	err = u.queueRepo.Enqueue(guildID, &domain.Music{
 		Query:            query,
 		QueuedAt:         time.Now(),
 		QueuedByID:       user.ID,
@@ -38,6 +50,12 @@ func (u *queueUseCase) AddQuery(guildID string, query string, user *discordgo.Us
 
 func (u *queueUseCase) List(guildID string) (*domain.Queue, error) {
 	q, err := u.queueRepo.GetOneByGuildID(guildID)
+	if errors.Is(err, domain.ErrQueueNotFound) {
+		q, err = u.queueRepo.Create(guildID)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

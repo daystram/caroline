@@ -6,7 +6,6 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 )
 
@@ -53,13 +52,17 @@ func skipCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 
 		// get queue
 		q, err := srv.UC.Queue.List(i.GuildID)
-		if errors.Is(err, domain.ErrNotPlaying) {
+		if err != nil {
+			log.Println("command: skip:", err)
+			return
+		}
+		if len(q.Tracks) == 0 {
 			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Embeds: []*discordgo.MessageEmbed{
 						{
-							Description: "Nothing is playing!",
+							Description: "I'm not playing anything right now!",
 						},
 					},
 				},
@@ -67,10 +70,6 @@ func skipCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			if err != nil {
 				log.Println("command: skip:", err)
 			}
-			return
-		}
-		if err != nil {
-			log.Println("command: skip:", err)
 			return
 		}
 

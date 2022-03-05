@@ -21,19 +21,37 @@ type queueRepository struct {
 
 var _ domain.QueueRepository = (*queueRepository)(nil)
 
+func (r *queueRepository) Create(guildID string) (*domain.Queue, error) {
+	q := &domain.Queue{
+		GuildID:    guildID,
+		Tracks:     make([]*domain.Music, 0),
+		CurrentPos: -1,
+	}
+	r.queues[guildID] = q
+
+	return q, nil
+}
+
+func (r *queueRepository) GetOneByGuildID(guildID string) (*domain.Queue, error) {
+	r.lock.RLock()
+	defer r.lock.RUnlock()
+
+	q, ok := r.queues[guildID]
+	if !ok {
+		return nil, domain.ErrQueueNotFound
+	}
+
+	return q, nil
+}
+
 func (r *queueRepository) Enqueue(guildID string, music *domain.Music) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	if _, ok := r.queues[guildID]; !ok {
-		r.queues[guildID] = &domain.Queue{
-			GuildID:    guildID,
-			Tracks:     make([]*domain.Music, 0),
-			CurrentPos: -1,
-		}
+	q, ok := r.queues[guildID]
+	if !ok {
+		return domain.ErrQueueNotFound
 	}
-
-	q := r.queues[guildID]
 	q.Tracks = append(q.Tracks, music) // TODO: insert modes
 
 	return nil
@@ -45,7 +63,7 @@ func (r *queueRepository) Pop(guildID string) (*domain.Music, error) {
 
 	q, ok := r.queues[guildID]
 	if !ok {
-		return nil, domain.ErrNotPlaying
+		return nil, domain.ErrQueueNotFound
 	}
 	if q.CurrentPos == len(q.Tracks)-1 {
 		return nil, nil // end of queue
@@ -62,7 +80,7 @@ func (r *queueRepository) JumpPos(guildID string, pos int) error {
 
 	q, ok := r.queues[guildID]
 	if !ok {
-		return domain.ErrNotPlaying
+		return domain.ErrQueueNotFound
 	}
 	if pos < -1 || pos > len(q.Tracks)-1 { // allow setting to -1 to reset queue
 		return domain.ErrQueueOutOfBounds
@@ -71,16 +89,4 @@ func (r *queueRepository) JumpPos(guildID string, pos int) error {
 	q.CurrentPos = pos
 
 	return nil
-}
-
-func (r *queueRepository) GetOneByGuildID(guildID string) (*domain.Queue, error) {
-	r.lock.RLock()
-	defer r.lock.RUnlock()
-
-	q, ok := r.queues[guildID]
-	if !ok {
-		return nil, domain.ErrNotPlaying
-	}
-
-	return q, nil
 }
