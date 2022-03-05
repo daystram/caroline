@@ -78,7 +78,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				},
 			})
 			if err != nil {
-				log.Println("command: continue:", err)
+				log.Println("command: play:", err)
 			}
 			return
 		}
