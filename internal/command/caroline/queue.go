@@ -18,6 +18,14 @@ func RegisterQueue(srv *server.Server, interactionHandlers map[string]func(*disc
 	_, err := srv.Session.ApplicationCommandCreate(srv.Session.State.User.ID, "", &discordgo.ApplicationCommand{
 		Name:        queueCommandName,
 		Description: "View playing queue",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        "page",
+				Description: "Queue page number",
+				Required:    false,
+			},
+		},
 	})
 	if err != nil {
 		return err
@@ -30,6 +38,32 @@ func RegisterQueue(srv *server.Server, interactionHandlers map[string]func(*disc
 
 func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// get page
+		page := -1
+		if len(i.ApplicationCommandData().Options) > 0 {
+			p, ok := i.ApplicationCommandData().Options[0].Value.(float64)
+			if !ok {
+				log.Println("command: queue: option type mismatch")
+				return
+			}
+			if p < 1 {
+				err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Embeds: []*discordgo.MessageEmbed{
+							{
+								Description: "Invalid page number!",
+							},
+						},
+					},
+				})
+				if err != nil {
+					log.Println("command: queue:", err)
+				}
+			}
+			page = int(p)
+		}
+
 		// get queue
 		q, err := srv.UC.Queue.List(i.GuildID)
 		if errors.Is(err, domain.ErrNotPlaying) {
@@ -57,24 +91,7 @@ func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{
-					{
-						Title:       "Queue",
-						Description: util.FormatQueue(q),
-						Fields: []*discordgo.MessageEmbedField{
-							{
-								Name:   "Size",
-								Value:  fmt.Sprintf("%d track%s", len(q.Tracks), util.Plural(len(q.Tracks))),
-								Inline: true,
-							},
-							{
-								Name:   "Loop",
-								Value:  "WIP", // TODO: looping
-								Inline: true,
-							},
-						},
-					},
-				},
+				Embeds: []*discordgo.MessageEmbed{util.FormatQueue(q, srv.UC.Player.Status(i.GuildID), page)},
 			},
 		})
 		if err != nil {

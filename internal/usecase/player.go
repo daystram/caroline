@@ -96,6 +96,18 @@ func (u *playerUseCase) Stop(s *discordgo.Session, vch *discordgo.Channel) error
 	return nil
 }
 
+func (u *playerUseCase) Status(guildID string) domain.PlayerStatus {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+
+	sp, ok := u.speakers[guildID]
+	if !ok {
+		return domain.PlayerStatusStopped
+	}
+
+	return sp.Status
+}
+
 func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker) error {
 	sp.Status = domain.PlayerStatusPlaying
 	defer func() {

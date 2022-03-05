@@ -23,4 +23,5 @@ const (
 type PlayerUseCase interface {
 	Play(s *discordgo.Session, vch, sch *discordgo.Channel) error
 	Stop(s *discordgo.Session, vch *discordgo.Channel) error
+	Status(guildID string) PlayerStatus
 }
