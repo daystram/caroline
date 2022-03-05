@@ -21,7 +21,7 @@ func FormatQueue(q *domain.Queue, st domain.PlayerStatus, page int) *discordgo.M
 	if page < 1 {
 		page = q.CurrentTrack/pageSize + 1
 	}
-	if (page-1)*pageSize > len(q.Tracks) {
+	if (page-1)*pageSize >= len(q.Tracks) {
 		qStr = "No more tracks!"
 	} else {
 		for i, t := range q.Tracks[pageSize*(page-1) : pageSize*page] {
@@ -56,7 +56,7 @@ func FormatQueue(q *domain.Queue, st domain.PlayerStatus, page int) *discordgo.M
 			},
 			{
 				Name:   "Page",
-				Value:  fmt.Sprintf("%d/%d", page, len(q.Tracks)/pageSize+1),
+				Value:  fmt.Sprintf("%d/%d", page, len(q.Tracks)/pageSize),
 				Inline: true,
 			},
 			{
