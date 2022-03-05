@@ -36,7 +36,7 @@ func stopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Data: &discordgo.InteractionResponseData{
 					Embeds: []*discordgo.MessageEmbed{
 						{
-							Description: "You have to be in a voice channel to stop Caroline!",
+							Description: "You have to be in a voice channel to stop me!",
 						},
 					},
 				},
@@ -59,7 +59,23 @@ func stopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 
 		err = srv.UC.Player.Stop(s, vch)
-		if err != nil && !errors.Is(err, domain.ErrInOtherChannel) {
+		if errors.Is(err, domain.ErrInOtherChannel) {
+			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Description: "You have to be in the same voice channel to stop me!",
+						},
+					},
+				},
+			})
+			if err != nil {
+				log.Println("command: stop:", err)
+			}
+			return
+		}
+		if err != nil {
 			log.Println("command: stop:", err)
 			return
 		}
@@ -69,7 +85,7 @@ func stopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			Data: &discordgo.InteractionResponseData{
 				Embeds: []*discordgo.MessageEmbed{
 					{
-						Description: "Stopped!",
+						Description: "Stopping!",
 					},
 				},
 			},

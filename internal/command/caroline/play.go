@@ -61,6 +61,28 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 
 		// add to queue
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
+			log.Println("command: play:", err)
+			return
+		}
+		if p != nil && p.Status != domain.PlayerStatusUninitialized && p.VoiceChannel.ID != vs.ChannelID {
+			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Description: "You have to be in the same voice channel as me to play music!",
+						},
+					},
+				},
+			})
+			if err != nil {
+				log.Println("command: continue:", err)
+			}
+			return
+		}
+
 		query, ok := i.ApplicationCommandData().Options[0].Value.(string)
 		if !ok {
 			log.Println("command: play: option type mismatch")
@@ -87,10 +109,13 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			log.Println("command: play:", err)
 		}
 
-		err = srv.UC.Queue.AddQuery(i.GuildID, query, i.Member.User)
-		if err != nil {
-			log.Println("command: play:", err)
-			return
+		// TODO: debug
+		for a := 0; a < 10; a++ {
+			err = srv.UC.Queue.AddQuery(i.GuildID, query, i.Member.User)
+			if err != nil {
+				log.Println("command: play:", err)
+				return
+			}
 		}
 
 		// play in voice channel
@@ -99,18 +124,15 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			log.Println("command: play:", err)
 			return
 		}
-
 		sch, err := s.Channel(i.ChannelID)
 		if err != nil {
 			log.Println("command: play:", err)
 			return
 		}
 
-		go func() {
-			err := srv.UC.Player.Play(s, vch, sch)
-			if err != nil && !errors.Is(err, domain.ErrInOtherChannel) {
-				log.Println("command: play:", err)
-			}
-		}()
+		err = srv.UC.Player.Play(s, vch, sch)
+		if err != nil {
+			log.Println("command: play:", err)
+		}
 	}
 }
