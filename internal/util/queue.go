@@ -8,7 +8,7 @@ import (
 	"github.com/daystram/caroline/internal/domain"
 )
 
-func FormatQueue(q *domain.Queue, st domain.PlayerStatus, page int) *discordgo.MessageEmbed {
+func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.MessageEmbed {
 	if q.CurrentTrack == -1 || len(q.Tracks) == 0 {
 		return &discordgo.MessageEmbed{
 			Title:       "Queue",
@@ -27,7 +27,7 @@ func FormatQueue(q *domain.Queue, st domain.PlayerStatus, page int) *discordgo.M
 		for i, t := range q.Tracks[pageSize*(page-1) : pageSize*page] {
 			i += pageSize * (page - 1)
 			if i == q.CurrentTrack {
-				if st == domain.PlayerStatusPlaying {
+				if p.Status == domain.PlayerStatusPlaying {
 					qStr += "__**"
 				} else {
 					qStr += "*"
@@ -35,7 +35,7 @@ func FormatQueue(q *domain.Queue, st domain.PlayerStatus, page int) *discordgo.M
 			}
 			qStr += fmt.Sprintf("`[%d]  %-30.30s  [@%s]`", i+1, t.Query, t.QueuedByUsername)
 			if i == q.CurrentTrack {
-				if st == domain.PlayerStatusPlaying {
+				if p.Status == domain.PlayerStatusPlaying {
 					qStr += "**__"
 				} else {
 					qStr += "*"

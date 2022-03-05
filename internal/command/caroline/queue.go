@@ -87,10 +87,15 @@ func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 		}
 
 		// respond
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if err != nil {
+			log.Println("command: queue:", err)
+			return
+		}
 		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{util.FormatQueue(q, srv.UC.Player.Status(i.GuildID), page)},
+				Embeds: []*discordgo.MessageEmbed{util.FormatQueue(q, p, page)},
 			},
 		})
 		if err != nil {

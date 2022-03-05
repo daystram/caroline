@@ -31,11 +31,7 @@ type playerUseCase struct {
 var _ domain.PlayerUseCase = (*playerUseCase)(nil)
 
 type speaker struct {
-	GuildID       string
-	VoiceChannel  *discordgo.Channel
-	StatusChannel *discordgo.Channel
-	Conn          *discordgo.VoiceConnection
-	Status        domain.PlayerStatus
+	domain.Player
 
 	action chan domain.PlayerAction
 }
@@ -51,19 +47,21 @@ func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) 
 		}
 
 		u.speakers[vch.GuildID] = &speaker{
-			GuildID:       vch.GuildID,
-			VoiceChannel:  vch,
-			StatusChannel: sch,
-			Status:        domain.PlayerStatusStopped,
-			Conn:          conn,
-			action:        make(chan domain.PlayerAction),
+			Player: domain.Player{
+				GuildID:       vch.GuildID,
+				VoiceChannel:  vch,
+				StatusChannel: sch,
+				Status:        domain.PlayerStatusStopped,
+				Conn:          conn,
+			},
+			action: make(chan domain.PlayerAction),
 		}
 
 	}
 
 	sp := u.speakers[vch.GuildID]
 	if sp.VoiceChannel.ID != vch.ID {
-		return domain.ErrAlreadyPlayingOtherChannel
+		return domain.ErrInOtherChannel
 	}
 
 	if sp.Status == domain.PlayerStatusStopped {
@@ -88,7 +86,7 @@ func (u *playerUseCase) Stop(s *discordgo.Session, vch *discordgo.Channel) error
 	}
 
 	if sp.VoiceChannel.ID != vch.ID {
-		return domain.ErrAlreadyPlayingOtherChannel
+		return domain.ErrInOtherChannel
 	}
 
 	sp.action <- domain.PlayerActionStop
@@ -96,16 +94,16 @@ func (u *playerUseCase) Stop(s *discordgo.Session, vch *discordgo.Channel) error
 	return nil
 }
 
-func (u *playerUseCase) Status(guildID string) domain.PlayerStatus {
+func (u *playerUseCase) Get(guildID string) (*domain.Player, error) {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 
 	sp, ok := u.speakers[guildID]
 	if !ok {
-		return domain.PlayerStatusStopped
+		return nil, domain.ErrNotPlaying
 	}
 
-	return sp.Status
+	return &sp.Player, nil
 }
 
 func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker) error {
@@ -125,24 +123,20 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker) error {
 
 		music, err := u.musicRepo.SearchOne(entry.Query)
 		if err != nil {
-			_, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
+			_, _ = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
 				Title:       "Not Found",
 				Description: fmt.Sprintf("Could not find `%s`", entry.Query),
 			})
-			if err != nil {
-				log.Println("command: queue:", err)
-			}
+			log.Println("player:", err)
 			continue
 		}
 
 		surl, err := u.musicRepo.GetStreamURL(music)
 		if err != nil {
-			_, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
+			_, _ = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
 				Description: "Failed retrieving stream URL!",
 			})
-			if err != nil {
-				log.Println("command: queue:", err)
-			}
+			log.Println("player:", err)
 			continue
 		}
 

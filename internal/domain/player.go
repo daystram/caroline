@@ -11,6 +11,14 @@ const (
 	PlayerStatusStopped
 )
 
+type Player struct {
+	GuildID       string
+	VoiceChannel  *discordgo.Channel
+	StatusChannel *discordgo.Channel
+	Conn          *discordgo.VoiceConnection
+	Status        PlayerStatus
+}
+
 type PlayerAction uint
 
 const (
@@ -23,5 +31,5 @@ const (
 type PlayerUseCase interface {
 	Play(s *discordgo.Session, vch, sch *discordgo.Channel) error
 	Stop(s *discordgo.Session, vch *discordgo.Channel) error
-	Status(guildID string) PlayerStatus
+	Get(guildID string) (*Player, error)
 }

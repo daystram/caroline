@@ -7,6 +7,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 )
 
@@ -107,7 +108,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 
 		go func() {
 			err := srv.UC.Player.Play(s, vch, sch)
-			if err != nil {
+			if err != nil && !errors.Is(err, domain.ErrInOtherChannel) {
 				log.Println("command: play:", err)
 			}
 		}()

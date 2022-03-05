@@ -6,6 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 )
 
@@ -58,7 +59,7 @@ func stopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 
 		err = srv.UC.Player.Stop(s, vch)
-		if err != nil {
+		if err != nil && !errors.Is(err, domain.ErrInOtherChannel) {
 			log.Println("command: stop:", err)
 			return
 		}
