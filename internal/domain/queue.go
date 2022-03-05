@@ -6,6 +6,28 @@ type Queue struct {
 	GuildID    string
 	Tracks     []*Music
 	CurrentPos int
+	Loop       LoopMode
+}
+
+type LoopMode uint
+
+const (
+	LoopModeOff LoopMode = iota
+	LoopModeOne
+	LoopModeAll
+)
+
+func (m LoopMode) String() string {
+	switch m {
+	case LoopModeOff:
+		return "off"
+	case LoopModeOne:
+		return "one"
+	case LoopModeAll:
+		return "all"
+	default:
+		return "invalid mode"
+	}
 }
 
 func (q *Queue) NowPlaying() *Music {
@@ -18,6 +40,7 @@ func (q *Queue) NowPlaying() *Music {
 type QueueUseCase interface {
 	AddQuery(guildID string, query string, user *discordgo.User, pos int) (int, error)
 	List(guildID string) (*Queue, error)
+	SetLoopMode(guildID string, mode LoopMode) error
 }
 
 type QueueRepository interface {
@@ -27,4 +50,5 @@ type QueueRepository interface {
 	Pop(guildID string) (*Music, error)
 	JumpPos(guildID string, pos int) error
 	Move(guildID string, track, pos int) error
+	SetLoopMode(guildID string, mode LoopMode) error
 }

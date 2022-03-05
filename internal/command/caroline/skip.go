@@ -6,6 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 )
 
@@ -73,7 +74,8 @@ func skipCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			return
 		}
 
-		if q.CurrentPos == len(q.Tracks)-1 {
+		// skip
+		if q.Loop != domain.LoopModeAll && q.CurrentPos == len(q.Tracks)-1 {
 			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
@@ -90,7 +92,6 @@ func skipCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			return
 		}
 
-		// skip
 		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil {
 			log.Println("command: skip:", err)
@@ -118,8 +119,7 @@ func skipCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			log.Println("command: skip:", err)
 			return
 		}
-
-		err = srv.UC.Player.Jump(s, vch, q.CurrentPos+1)
+		err = srv.UC.Player.Jump(s, vch, (q.CurrentPos+1)%len(q.Tracks))
 		if err != nil {
 			log.Println("command: skip:", err)
 			return

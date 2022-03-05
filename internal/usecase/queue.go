@@ -71,3 +71,23 @@ func (u *queueUseCase) List(guildID string) (*domain.Queue, error) {
 
 	return q, nil
 }
+
+func (u *queueUseCase) SetLoopMode(guildID string, mode domain.LoopMode) error {
+	_, err := u.queueRepo.GetOneByGuildID(guildID)
+	if errors.Is(err, domain.ErrQueueNotFound) {
+		_, err = u.queueRepo.Create(guildID)
+		if err != nil {
+			return err
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	err = u.queueRepo.SetLoopMode(guildID, mode)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -68,11 +68,21 @@ func (r *queueRepository) Pop(guildID string) (*domain.Music, error) {
 	if !ok {
 		return nil, domain.ErrQueueNotFound
 	}
-	if q.CurrentPos == len(q.Tracks)-1 {
-		return nil, nil // end of queue
-	}
 
-	q.CurrentPos++
+	switch q.Loop {
+	case domain.LoopModeOff:
+		if q.CurrentPos == len(q.Tracks)-1 {
+			return nil, nil // end of queue
+		}
+		q.CurrentPos++
+	case domain.LoopModeOne:
+		// do not update current pos
+	case domain.LoopModeAll:
+		if q.CurrentPos == len(q.Tracks)-1 {
+			q.CurrentPos = -1
+		}
+		q.CurrentPos++
+	}
 
 	return q.NowPlaying(), nil
 }
@@ -124,6 +134,20 @@ func (r *queueRepository) Move(guildID string, track, pos int) error {
 	if track > q.CurrentPos && pos <= q.CurrentPos {
 		q.CurrentPos++
 	}
+
+	return nil
+}
+
+func (r *queueRepository) SetLoopMode(guildID string, mode domain.LoopMode) error {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	q, ok := r.queues[guildID]
+	if !ok {
+		return domain.ErrQueueNotFound
+	}
+
+	q.Loop = mode
 
 	return nil
 }

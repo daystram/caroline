@@ -110,7 +110,7 @@ func (u *playerUseCase) Jump(s *discordgo.Session, vch *discordgo.Channel, pos i
 		return domain.ErrInOtherChannel
 	}
 
-	err := u.queueRepo.JumpPos(vch.GuildID, pos-1) // compensate for queueRepo.NextMusic() call after skipping
+	err := u.queueRepo.JumpPos(vch.GuildID, pos-1) // compensate for queueRepo.Pop() call after skipping
 	if err != nil {
 		return err
 	}

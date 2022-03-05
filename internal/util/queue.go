@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 
@@ -68,7 +69,7 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 			},
 			{
 				Name:   "Loop",
-				Value:  "WIP", // TODO: looping
+				Value:  strings.Title(q.Loop.String()),
 				Inline: true,
 			},
 		},

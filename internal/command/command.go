@@ -16,6 +16,7 @@ func commands() []RegisterFunc {
 	return []RegisterFunc{
 		caroline.RegisterContinue,
 		caroline.RegisterJump,
+		caroline.RegisterLoop,
 		caroline.RegisterNP,
 		caroline.RegisterPlay,
 		caroline.RegisterQueue,
