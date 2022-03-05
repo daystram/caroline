@@ -14,6 +14,7 @@ type RegisterFunc func(*server.Server, map[string]func(*discordgo.Session, *disc
 
 func commands() []RegisterFunc {
 	return []RegisterFunc{
+		caroline.RegisterContinue,
 		caroline.RegisterPlay,
 		caroline.RegisterQueue,
 		caroline.RegisterStop,
