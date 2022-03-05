@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"time"
+
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -18,6 +20,10 @@ type Player struct {
 	StatusChannel *discordgo.Channel
 	Conn          *discordgo.VoiceConnection
 	Status        PlayerStatus
+
+	CurrentTrack     *Music
+	CurrentUser      *discordgo.User
+	CurrentStartTime time.Time
 }
 
 type PlayerAction uint

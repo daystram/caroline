@@ -15,6 +15,7 @@ type RegisterFunc func(*server.Server, map[string]func(*discordgo.Session, *disc
 func commands() []RegisterFunc {
 	return []RegisterFunc{
 		caroline.RegisterContinue,
+		caroline.RegisterNP,
 		caroline.RegisterPlay,
 		caroline.RegisterQueue,
 		caroline.RegisterStop,
@@ -46,7 +47,7 @@ func RegisterAll(srv *server.Server) error {
 }
 
 func UnregisterAll(srv *server.Server) error {
-	cmds, err := srv.Session.ApplicationCommands(srv.Session.State.User.ID, "")
+	cmds, err := srv.Session.ApplicationCommands(srv.Session.State.User.ID, srv.DebugGuildID)
 	if err != nil {
 		return err
 	}

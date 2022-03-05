@@ -10,6 +10,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/daystram/caroline/internal/domain"
+	"github.com/daystram/caroline/internal/util"
 )
 
 func NewPlayerUseCase(musicRepo domain.MusicRepository, queueRepo domain.QueueRepository) (domain.PlayerUseCase, error) {
@@ -137,6 +138,9 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 				log.Println("player:", err)
 				break statusSwitch
 			}
+			music.QueuedAt = entry.QueuedAt
+			music.QueuedByID = entry.QueuedByID
+			music.QueuedByUsername = entry.QueuedByUsername
 
 			surl, err := u.musicRepo.GetStreamURL(music)
 			if err != nil {
@@ -151,39 +155,12 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 			if err != nil {
 				return err
 			}
-			_, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
-				Title:       "Now Playing",
-				Description: music.Title,
-				Fields: []*discordgo.MessageEmbedField{
-					{
-						Name:   "Source",
-						Value:  music.URL,
-						Inline: false,
-					},
-					{
-						Name:   "Duration",
-						Value:  music.Duration.String(),
-						Inline: true,
-					},
-					{
-						Name:   "Queued By",
-						Value:  user.Mention(),
-						Inline: true,
-					},
-					{
-						Name:   "Queued At",
-						Value:  entry.QueuedAt.Format(time.Kitchen),
-						Inline: true,
-					},
-				},
-				Author: &discordgo.MessageEmbedAuthor{
-					Name:    user.Username,
-					IconURL: discordgo.EndpointUserAvatar(user.ID, user.Avatar),
-				},
-				Thumbnail: &discordgo.MessageEmbedThumbnail{
-					URL: music.Thumbnail,
-				},
-			})
+
+			sp.CurrentTrack = music
+			sp.CurrentUser = user
+			sp.CurrentStartTime = time.Now()
+
+			_, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, util.FormatNowPlaying(sp.CurrentTrack, sp.CurrentUser, sp.CurrentStartTime))
 			if err != nil {
 				log.Println("player:", err)
 			}
