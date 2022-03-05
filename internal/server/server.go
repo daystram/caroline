@@ -47,6 +47,6 @@ func Start(cfg *config.Config, musicUC domain.MusicUseCase, playerUC domain.Play
 }
 
 func (s *Server) Stop() error {
-	s.UC.Player.StopAll(s.Session)
+	s.UC.Player.StopAll()
 	return s.Session.Close()
 }

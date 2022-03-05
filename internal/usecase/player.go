@@ -69,24 +69,20 @@ func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) 
 	return nil
 }
 
-func (u *playerUseCase) Stop(s *discordgo.Session, vch *discordgo.Channel) error {
+func (u *playerUseCase) Stop(p *domain.Player) error {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 
-	sp, ok := u.speakers[vch.GuildID]
+	sp, ok := u.speakers[p.GuildID]
 	if !ok || sp.Status == domain.PlayerStatusUninitialized {
 		return domain.ErrNotPlaying
-	}
-
-	if sp.VoiceChannel.ID != vch.ID {
-		return domain.ErrInOtherChannel
 	}
 
 	sp.action <- domain.PlayerActionStop
 	return nil
 }
 
-func (u *playerUseCase) StopAll(s *discordgo.Session) {
+func (u *playerUseCase) StopAll() {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 
@@ -150,6 +146,24 @@ func (u *playerUseCase) Get(guildID string) (*domain.Player, error) {
 	}
 
 	return sp.Player, nil
+}
+
+func (u *playerUseCase) Reset(p *domain.Player) error {
+	err := u.Stop(p)
+	if err != nil {
+		return err
+	}
+
+	err = u.queueRepo.Clear(p.GuildID)
+	if err != nil {
+		return err
+	}
+
+	p.CurrentTrack = nil
+	p.CurrentUser = nil
+	p.CurrentStartTime = time.Time{}
+
+	return nil
 }
 
 func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch *discordgo.Channel) error {

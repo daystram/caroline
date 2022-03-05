@@ -35,7 +35,7 @@ func (r *queueRepository) Create(guildID string) (*domain.Queue, error) {
 	return q, nil
 }
 
-func (r *queueRepository) GetOneByGuildID(guildID string) (*domain.Queue, error) {
+func (r *queueRepository) GetOne(guildID string) (*domain.Queue, error) {
 	r.lock.RLock()
 	defer r.lock.RUnlock()
 
@@ -148,6 +148,15 @@ func (r *queueRepository) SetLoopMode(guildID string, mode domain.LoopMode) erro
 	}
 
 	q.Loop = mode
+
+	return nil
+}
+
+func (r *queueRepository) Clear(guildID string) error {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	delete(r.queues, guildID)
 
 	return nil
 }

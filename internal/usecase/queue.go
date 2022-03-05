@@ -24,7 +24,7 @@ type queueUseCase struct {
 var _ domain.QueueUseCase = (*queueUseCase)(nil)
 
 func (u *queueUseCase) AddQuery(guildID string, query string, user *discordgo.User, pos int) (int, error) {
-	_, err := u.queueRepo.GetOneByGuildID(guildID)
+	_, err := u.queueRepo.GetOne(guildID)
 	if errors.Is(err, domain.ErrQueueNotFound) {
 		_, err = u.queueRepo.Create(guildID)
 		if err != nil {
@@ -58,7 +58,7 @@ func (u *queueUseCase) AddQuery(guildID string, query string, user *discordgo.Us
 }
 
 func (u *queueUseCase) List(guildID string) (*domain.Queue, error) {
-	q, err := u.queueRepo.GetOneByGuildID(guildID)
+	q, err := u.queueRepo.GetOne(guildID)
 	if errors.Is(err, domain.ErrQueueNotFound) {
 		q, err = u.queueRepo.Create(guildID)
 		if err != nil {
@@ -73,7 +73,7 @@ func (u *queueUseCase) List(guildID string) (*domain.Queue, error) {
 }
 
 func (u *queueUseCase) SetLoopMode(guildID string, mode domain.LoopMode) error {
-	_, err := u.queueRepo.GetOneByGuildID(guildID)
+	_, err := u.queueRepo.GetOne(guildID)
 	if errors.Is(err, domain.ErrQueueNotFound) {
 		_, err = u.queueRepo.Create(guildID)
 		if err != nil {

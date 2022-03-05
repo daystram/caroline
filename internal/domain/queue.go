@@ -45,10 +45,11 @@ type QueueUseCase interface {
 
 type QueueRepository interface {
 	Create(guildID string) (*Queue, error)
-	GetOneByGuildID(guildID string) (*Queue, error)
+	GetOne(guildID string) (*Queue, error)
 	Enqueue(guildID string, music *Music) (int, error)
 	Pop(guildID string) (*Music, error)
 	JumpPos(guildID string, pos int) error
 	Move(guildID string, track, pos int) error
 	SetLoopMode(guildID string, mode LoopMode) error
+	Clear(guildID string) error
 }

@@ -20,6 +20,7 @@ func commands() []RegisterFunc {
 		caroline.RegisterMove,
 		caroline.RegisterNP,
 		caroline.RegisterPlay,
+		caroline.RegisterReset,
 		caroline.RegisterQueue,
 		caroline.RegisterSkip,
 		caroline.RegisterStop,

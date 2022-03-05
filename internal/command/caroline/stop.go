@@ -29,7 +29,7 @@ func RegisterStop(srv *server.Server, interactionHandlers map[string]func(*disco
 func stopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// check if user in voice channel
-		vs, err := s.State.VoiceState(i.GuildID, i.Member.User.ID)
+		_, err := s.State.VoiceState(i.GuildID, i.Member.User.ID)
 		if errors.Is(err, discordgo.ErrStateNotFound) {
 			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -52,13 +52,13 @@ func stopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 
 		// stop player
-		vch, err := s.Channel(vs.ChannelID)
+		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil {
 			log.Println("command: stop:", err)
 			return
 		}
 
-		err = srv.UC.Player.Stop(s, vch)
+		err = srv.UC.Player.Stop(p)
 		if errors.Is(err, domain.ErrInOtherChannel) {
 			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
