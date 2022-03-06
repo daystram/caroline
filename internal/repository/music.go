@@ -7,6 +7,9 @@ import (
 	"strings"
 
 	yt "github.com/kkdai/youtube/v2"
+	"github.com/zmb3/spotify/v2"
+	spotifyauth "github.com/zmb3/spotify/v2/auth"
+	"golang.org/x/oauth2/clientcredentials"
 	"google.golang.org/api/option"
 	"google.golang.org/api/youtube/v3"
 
@@ -19,37 +22,62 @@ const (
 )
 
 var (
+	spotifyRegex = regexp.MustCompile(`spotify\.com\/track\/(?P<trackID>[^\?&"'>]+)`)
 	youtubeRegex = regexp.MustCompile(`(youtu\.be\/|youtube\.com\/(watch\?(.*&)?v=|(embed|v)\/))(?P<videoID>[^\?&"'>]+)`)
 )
 
-func NewMusicRepository(apiKey string) (domain.MusicRepository, error) {
-	api, err := youtube.NewService(context.Background(), option.WithAPIKey(apiKey))
+func NewMusicRepository(ytAPIKey, spClientID, spClientSecret string) (domain.MusicRepository, error) {
+	// youtube
+	ytAPI, err := youtube.NewService(context.Background(), option.WithAPIKey(ytAPIKey))
 	if err != nil {
 		return nil, err
 	}
 
+	// spotify
+	config := &clientcredentials.Config{
+		ClientID:     spClientID,
+		ClientSecret: spClientSecret,
+		TokenURL:     spotifyauth.TokenURL,
+	}
+	token, err := config.Token(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	spAPI := spotify.New(spotifyauth.New().Client(context.Background(), token))
+
 	return &musicRepository{
-		ytAPI:    api,
+		ytAPI:    ytAPI,
+		spAPI:    spAPI,
 		ytClient: yt.Client{},
 	}, nil
 }
 
 type musicRepository struct {
-	ytAPI    *youtube.Service
+	ytAPI *youtube.Service
+	spAPI *spotify.Client
+
 	ytClient yt.Client
 }
 
 var _ domain.MusicRepository = (*musicRepository)(nil)
 
 func (r *musicRepository) SearchOne(query string) (*domain.Music, error) {
-	// TODO: other providers
 	query = strings.TrimSpace(query)
 
 	var videoID string
 	switch {
+	case spotifyRegex.MatchString(query):
+		trackID := spotifyRegex.FindStringSubmatch(query)[spotifyRegex.SubexpIndex("trackID")]
+		track, err := r.spAPI.GetTrack(context.Background(), spotify.ID(trackID), spotify.Limit(1))
+		if err != nil {
+			return nil, err
+		}
+		query = fmt.Sprintf("%s - %s", track.Name, track.Artists[0].Name)
 	case youtubeRegex.MatchString(query):
 		videoID = youtubeRegex.FindStringSubmatch(query)[youtubeRegex.SubexpIndex("videoID")]
-	default:
+	}
+
+	if videoID == "" {
 		resp, err := r.ytAPI.Search.List([]string{"id"}).Q(query).MaxResults(1).Do()
 		if err != nil {
 			return nil, err
@@ -57,7 +85,6 @@ func (r *musicRepository) SearchOne(query string) (*domain.Music, error) {
 		if len(resp.Items) == 0 {
 			return nil, domain.ErrMusicNotFound
 		}
-
 		videoID = resp.Items[0].Id.VideoId
 	}
 

@@ -40,11 +40,13 @@ $ docker run --name caroline --env-file ./.env -d daystram/caroline
 
 The bot could be configured by setting the following environment variables.
 
-| Name             | Description            | Default | Required |
-| ---------------- | ---------------------- | ------- | -------- |
-| `BOT_TOKEN`      | Discord Bot token      | `""`    | ✅       |
-| `YT_API_KEY`     | YouTube API key        | `""`    | ✅       |
-| `DEBUG_GUILD_ID` | Discord debug Guild ID | `""`    | ⬜       |
+| Name               | Description            | Default | Required |
+| ------------------ | ---------------------- | ------- | -------- |
+| `BOT_TOKEN`        | Discord Bot token      | `""`    | ✅       |
+| `SP_CLIENT_ID`     | Spotify client ID      | `""`    | ✅       |
+| `SP_CLIENT_SECRET` | Spotify client secret  | `""`    | ✅       |
+| `YT_API_KEY`       | YouTube API key        | `""`    | ✅       |
+| `DEBUG_GUILD_ID`   | Discord debug Guild ID | `""`    | ⬜       |
 
 ## License
 

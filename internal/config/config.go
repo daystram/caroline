@@ -6,9 +6,13 @@ import (
 )
 
 type Config struct {
-	BotToken      string
-	YouTubeAPIKey string
-	DebugGuildID  string
+	BotToken string
+
+	SpotifyClientID     string
+	SpotifyClientSecret string
+	YouTubeAPIKey       string
+
+	DebugGuildID string
 }
 
 func Load() (*Config, error) {
@@ -17,6 +21,14 @@ func Load() (*Config, error) {
 	var found bool
 	if c.BotToken, found = os.LookupEnv("BOT_TOKEN"); !found {
 		return nil, errors.New("BOT_TOKEN not specified")
+	}
+
+	if c.SpotifyClientID, found = os.LookupEnv("SP_CLIENT_ID"); !found {
+		return nil, errors.New("SP_CLIENT_ID not specified")
+	}
+
+	if c.SpotifyClientSecret, found = os.LookupEnv("SP_CLIENT_SECRET"); !found {
+		return nil, errors.New("SP_CLIENT_SECRET not specified")
 	}
 
 	if c.YouTubeAPIKey, found = os.LookupEnv("YT_API_KEY"); !found {
