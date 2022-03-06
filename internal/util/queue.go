@@ -49,7 +49,11 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 				qStr += "`   "
 			}
 
-			qStr += fmt.Sprintf("[%*d]  %-30.30s  [@%s]", pad, i+1, t.Query, t.QueuedByUsername)
+			title := fmt.Sprintf("(?) %s", t.Query)
+			if t.Loaded {
+				title = t.Title
+			}
+			qStr += fmt.Sprintf("[%*d]  %-27.27s  [@%s]", pad, i+1, title, t.QueuedByUsername)
 
 			if i == q.CurrentPos {
 				if p.Status == domain.PlayerStatusPlaying {
