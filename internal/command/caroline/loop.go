@@ -8,6 +8,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
@@ -67,11 +68,11 @@ func loopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 
 		if !util.IsPlayerReady(p) {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
 		if !util.IsSameVC(p, vs) {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseDifferentVC)
 			return
 		}
 
@@ -96,6 +97,7 @@ func loopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Embeds: []*discordgo.MessageEmbed{
 					{
 						Description: fmt.Sprintf("Changed looping mode to **%s**!", mode.String()),
+						Color:       common.ColorAction,
 					},
 				},
 			},

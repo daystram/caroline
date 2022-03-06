@@ -6,6 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 )
 
@@ -17,6 +18,7 @@ func FormatNowPlaying(music *domain.Music, user *discordgo.User, start time.Time
 	return &discordgo.MessageEmbed{
 		Title:       "Now Playing",
 		Description: music.Title,
+		Color:       common.ColorNowPlaying,
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name:   "Source",

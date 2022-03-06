@@ -7,6 +7,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
@@ -67,11 +68,11 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 
 		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
 		if !util.IsSameVC(p, vs) {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseDifferentVC)
 			return
 		}
 
@@ -95,6 +96,7 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 					Embeds: []*discordgo.MessageEmbed{
 						{
 							Description: "Invalid position!",
+							Color:       common.ColorError,
 						},
 					},
 				},
@@ -109,6 +111,7 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 					Embeds: []*discordgo.MessageEmbed{
 						{
 							Description: "Cannot move currently playing track!",
+							Color:       common.ColorError,
 						},
 					},
 				},
@@ -129,6 +132,7 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Embeds: []*discordgo.MessageEmbed{
 					{
 						Description: fmt.Sprintf("Moved **%d** to **%d**!", from+1, to+1),
+						Color:       common.ColorAction,
 					},
 				},
 			},

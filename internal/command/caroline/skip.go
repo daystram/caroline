@@ -6,6 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
@@ -52,11 +53,11 @@ func skipCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 
 		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
 		if !util.IsSameVC(p, vs) {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseDifferentVC)
 			return
 		}
 
@@ -67,7 +68,8 @@ func skipCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Data: &discordgo.InteractionResponseData{
 					Embeds: []*discordgo.MessageEmbed{
 						{
-							Description: "Already at end of queue!",
+							Description: "Already at the end of queue!",
+							Color:       common.ColorError,
 						},
 					},
 				},
@@ -87,6 +89,7 @@ func skipCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Embeds: []*discordgo.MessageEmbed{
 					{
 						Description: "Skipping!",
+						Color:       common.ColorAction,
 					},
 				},
 			},

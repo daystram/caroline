@@ -8,6 +8,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
@@ -68,7 +69,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 
 		if util.IsPlayerReady(p) && !util.IsSameVC(p, vs) {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseDifferentVC)
 			return
 		}
 
@@ -95,6 +96,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 						Embeds: []*discordgo.MessageEmbed{
 							{
 								Description: "Invalid position!",
+								Color:       common.ColorError,
 							},
 						},
 					},
@@ -118,6 +120,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 					{
 						Title:       "Added to Queue",
 						Description: query,
+						Color:       common.ColorPlay,
 						Author: &discordgo.MessageEmbedAuthor{
 							Name:    i.Member.User.Username,
 							IconURL: discordgo.EndpointUserAvatar(i.Member.User.ID, i.Member.User.Avatar),

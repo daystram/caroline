@@ -6,6 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
@@ -42,7 +43,7 @@ func npCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interacti
 		}
 
 		if !util.IsPlayerReady(p) || p.Status == domain.PlayerStatusStopped || len(q.Tracks) == 0 {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
 

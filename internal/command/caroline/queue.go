@@ -6,6 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
@@ -50,7 +51,7 @@ func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 		}
 
 		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
 
@@ -69,6 +70,7 @@ func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 						Embeds: []*discordgo.MessageEmbed{
 							{
 								Description: "Invalid page number!",
+								Color:       common.ColorError,
 							},
 						},
 					},

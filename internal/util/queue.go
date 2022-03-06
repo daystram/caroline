@@ -8,6 +8,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 )
 
@@ -16,6 +17,7 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 		return &discordgo.MessageEmbed{
 			Title:       "Queue",
 			Description: "*Empty*",
+			Color:       common.ColorQueue,
 		}
 	}
 
@@ -65,6 +67,7 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 	return &discordgo.MessageEmbed{
 		Title:       "Queue",
 		Description: qStr,
+		Color:       common.ColorQueue,
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name:   "Size",

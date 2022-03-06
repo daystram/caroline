@@ -6,6 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
@@ -47,7 +48,7 @@ func continueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Int
 		}
 
 		if util.IsPlayerReady(p) && !util.IsSameVC(p, vs) {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseDifferentVC)
 			return
 		}
 
@@ -75,6 +76,7 @@ func continueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Int
 				Embeds: []*discordgo.MessageEmbed{
 					{
 						Description: "Continuing!",
+						Color:       common.ColorAction,
 					},
 				},
 			},

@@ -4,6 +4,8 @@ import (
 	"errors"
 
 	"github.com/bwmarrin/discordgo"
+
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 )
 
@@ -16,6 +18,7 @@ func GetUserVS(s *discordgo.Session, i *discordgo.InteractionCreate, must bool, 
 				Embeds: []*discordgo.MessageEmbed{
 					{
 						Description: msg,
+						Color:       common.ColorError,
 					},
 				},
 			},

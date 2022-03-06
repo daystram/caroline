@@ -6,6 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
@@ -47,11 +48,11 @@ func resetCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 		}
 
 		if !util.IsPlayerReady(p) {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
 		if !util.IsSameVC(p, vs) {
-			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseDifferentVC)
 			return
 		}
 
@@ -68,6 +69,7 @@ func resetCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 				Embeds: []*discordgo.MessageEmbed{
 					{
 						Description: "Resetting!",
+						Color:       common.ColorAction,
 					},
 				},
 			},
