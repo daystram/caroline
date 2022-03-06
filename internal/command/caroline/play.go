@@ -90,17 +90,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			}
 			p, err := util.ParseRelativePosOption(q, posRaw)
 			if err != nil {
-				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Embeds: []*discordgo.MessageEmbed{
-							{
-								Description: "Invalid position!",
-								Color:       common.ColorError,
-							},
-						},
-					},
-				})
+				_ = s.InteractionRespond(i.Interaction, common.InteractionResponseInvalidPosition)
 				return
 			}
 			pos = p

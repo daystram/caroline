@@ -90,17 +90,7 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		from, to := int(f)-1, int(t)-1
 
 		if from < 0 || from > len(q.Tracks)-1 || to < 0 || to > len(q.Tracks)-1 {
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "Invalid position!",
-							Color:       common.ColorError,
-						},
-					},
-				},
-			})
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseInvalidPosition)
 			return
 		}
 
