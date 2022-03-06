@@ -21,8 +21,6 @@ type Player struct {
 	Conn          *discordgo.VoiceConnection
 	Status        PlayerStatus
 
-	CurrentTrack     *Music
-	CurrentUser      *discordgo.User
 	CurrentStartTime time.Time
 }
 

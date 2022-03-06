@@ -10,6 +10,10 @@ import (
 )
 
 func FormatNowPlaying(music *domain.Music, user *discordgo.User, start time.Time) *discordgo.MessageEmbed {
+	if !music.Loaded {
+		panic("should not format unloaded music")
+	}
+
 	return &discordgo.MessageEmbed{
 		Title:       "Now Playing",
 		Description: music.Title,

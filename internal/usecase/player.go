@@ -159,8 +159,6 @@ func (u *playerUseCase) Reset(p *domain.Player) error {
 		return err
 	}
 
-	p.CurrentTrack = nil
-	p.CurrentUser = nil
 	p.CurrentStartTime = time.Time{}
 
 	return nil
@@ -188,27 +186,30 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 	statusSwitch:
 		switch sp.Status {
 		case domain.PlayerStatusPlaying:
-			entry, err := u.queueRepo.Pop(sp.GuildID)
+			music, err := u.queueRepo.Pop(sp.GuildID)
 			if err != nil {
 				return err
 			}
-			if entry == nil {
+			if music == nil {
 				sp.Status = domain.PlayerStatusStopped
 				break statusSwitch
 			}
-
-			music, err := u.musicRepo.SearchOne(entry.Query)
-			if err != nil {
-				_, _ = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
-					Title:       "Not Found",
-					Description: fmt.Sprintf("Could not find `%s`", entry.Query),
-				})
-				log.Println("player:", err)
-				break statusSwitch
+			if !music.Loaded {
+				res, err := u.musicRepo.SearchOne(music.Query)
+				if err != nil {
+					_, _ = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
+						Title:       "Not Found",
+						Description: fmt.Sprintf("Could not find `%s`", music.Query),
+					})
+					log.Println("player:", err)
+					break statusSwitch
+				}
+				music.Title = res.Title
+				music.URL = res.URL
+				music.Thumbnail = res.Thumbnail
+				music.Duration = res.Duration
+				music.Loaded = true
 			}
-			music.QueuedAt = entry.QueuedAt
-			music.QueuedByID = entry.QueuedByID
-			music.QueuedByUsername = entry.QueuedByUsername
 
 			surl, err := u.musicRepo.GetStreamURL(music)
 			if err != nil {
@@ -219,23 +220,20 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 				break statusSwitch
 			}
 
-			user, err := s.User(entry.QueuedByID)
+			user, err := s.User(music.QueuedByID)
 			if err != nil {
 				return err
 			}
-
-			sp.CurrentTrack = music
-			sp.CurrentUser = user
 			sp.CurrentStartTime = time.Now()
-
-			_, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, util.FormatNowPlaying(sp.CurrentTrack, sp.CurrentUser, sp.CurrentStartTime))
-			if err != nil {
-				log.Println("player:", err)
-			}
 
 			stop := make(chan bool)
 			next := make(chan bool)
 			go func() {
+				_, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, util.FormatNowPlaying(music, user, sp.CurrentStartTime))
+				if err != nil {
+					log.Println("player:", err)
+				}
+
 				dgvoice.PlayAudioFile(sp.Conn, surl, stop)
 				next <- true
 			}()

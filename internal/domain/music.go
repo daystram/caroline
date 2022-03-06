@@ -13,6 +13,7 @@ type Music struct {
 	QueuedAt         time.Time
 	QueuedByID       string
 	QueuedByUsername string
+	Loaded           bool
 }
 
 type MusicUseCase interface {

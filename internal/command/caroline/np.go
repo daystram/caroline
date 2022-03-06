@@ -54,10 +54,21 @@ func npCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interacti
 		}
 
 		// send embed
+		q, err := srv.UC.Queue.List(i.GuildID)
+		if err != nil {
+			log.Println("command: np:", err)
+			return
+		}
+		user, err := s.User(q.NowPlaying().QueuedByID)
+		if err != nil {
+			log.Println("command: np:", err)
+			return
+		}
+
 		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{util.FormatNowPlaying(p.CurrentTrack, p.CurrentUser, p.CurrentStartTime)},
+				Embeds: []*discordgo.MessageEmbed{util.FormatNowPlaying(q.NowPlaying(), user, p.CurrentStartTime)},
 			},
 		})
 		if err != nil {
