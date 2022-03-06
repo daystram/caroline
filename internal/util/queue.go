@@ -12,8 +12,11 @@ import (
 )
 
 func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.MessageEmbed {
-	if q.CurrentPos == -1 || len(q.Tracks) == 0 {
-		return nil
+	if len(q.Tracks) == 0 {
+		return &discordgo.MessageEmbed{
+			Title:       "Queue",
+			Description: "*Empty*",
+		}
 	}
 
 	min := func(a, b int) int {
@@ -31,7 +34,7 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 	if (page-1)*pageSize >= len(q.Tracks) {
 		qStr = "No more tracks!"
 	} else {
-		pad := len(strconv.Itoa(pageSize * page))
+		pad := len(strconv.Itoa(min(len(q.Tracks), pageSize*page)))
 		for i, t := range q.Tracks[pageSize*(page-1) : min(pageSize*page, len(q.Tracks))] {
 			i += pageSize * (page - 1)
 			if i == q.CurrentPos {
@@ -43,7 +46,9 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 			} else {
 				qStr += "`   "
 			}
+
 			qStr += fmt.Sprintf("[%*d]  %-30.30s  [@%s]", pad, i+1, t.Query, t.QueuedByUsername)
+
 			if i == q.CurrentPos {
 				if p.Status == domain.PlayerStatusPlaying {
 					qStr += "`"
