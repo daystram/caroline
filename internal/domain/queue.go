@@ -38,9 +38,9 @@ func (q *Queue) NowPlaying() *Music {
 }
 
 type QueueUseCase interface {
-	AddQuery(guildID string, query string, user *discordgo.User, pos int) (int, error)
-	List(guildID string) (*Queue, error)
-	SetLoopMode(guildID string, mode LoopMode) error
+	Get(guildID string) (*Queue, error)
+	AddQuery(q *Queue, query string, user *discordgo.User, pos int) (int, error)
+	SetLoopMode(q *Queue, mode LoopMode) error
 }
 
 type QueueRepository interface {

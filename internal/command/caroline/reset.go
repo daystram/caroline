@@ -6,6 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
 )
@@ -29,18 +30,32 @@ func RegisterReset(srv *server.Server, interactionHandlers map[string]func(*disc
 func resetCommand(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// check if user in voice channel
-		_, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to reset me!")
-		if err != nil && !errors.Is(err, discordgo.ErrStateNotFound) {
-			log.Println("command: reset:", err)
+		vs, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to reset me!")
+		if errors.Is(err, discordgo.ErrStateNotFound) {
 			return
 		}
-
-		// reset player
-		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil {
 			log.Println("command: reset:", err)
 			return
 		}
+
+		// get player
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
+			log.Println("command: reset:", err)
+			return
+		}
+
+		if !util.IsPlayerReady(p) {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			return
+		}
+		if !util.IsSameVC(p, vs) {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			return
+		}
+
+		// reset player
 		err = srv.UC.Player.Reset(p)
 		if err != nil {
 			log.Println("command: reset:", err)

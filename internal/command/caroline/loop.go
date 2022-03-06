@@ -45,13 +45,37 @@ func RegisterLoop(srv *server.Server, interactionHandlers map[string]func(*disco
 func loopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// check if user in voice channel
-		_, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to change looping mode!")
-		if err != nil && !errors.Is(err, discordgo.ErrStateNotFound) {
+		vs, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to change looping mode!")
+		if errors.Is(err, discordgo.ErrStateNotFound) {
+			return
+		}
+		if err != nil {
 			log.Println("command: loop:", err)
 			return
 		}
 
-		// set mode
+		// get player and queue
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
+			log.Println("command: loop:", err)
+			return
+		}
+		q, err := srv.UC.Queue.Get(i.GuildID)
+		if err != nil {
+			log.Println("command: loop:", err)
+			return
+		}
+
+		if !util.IsPlayerReady(p) {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			return
+		}
+		if !util.IsSameVC(p, vs) {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			return
+		}
+
+		// parse mode
 		modeRaw, ok := i.ApplicationCommandData().Options[0].Value.(float64)
 		if !ok {
 			log.Println("command: loop: option type mismatch")
@@ -59,7 +83,8 @@ func loopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 		mode := domain.LoopMode(modeRaw)
 
-		err = srv.UC.Queue.SetLoopMode(i.GuildID, mode)
+		// set mode
+		err = srv.UC.Queue.SetLoopMode(q, mode)
 		if err != nil {
 			log.Println("command: loop:", err)
 			return

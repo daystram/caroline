@@ -23,41 +23,7 @@ type queueUseCase struct {
 
 var _ domain.QueueUseCase = (*queueUseCase)(nil)
 
-func (u *queueUseCase) AddQuery(guildID string, query string, user *discordgo.User, pos int) (int, error) {
-	_, err := u.queueRepo.GetOne(guildID)
-	if errors.Is(err, domain.ErrQueueNotFound) {
-		_, err = u.queueRepo.Create(guildID)
-		if err != nil {
-			return -1, err
-		}
-	}
-	if err != nil {
-		return -1, err
-	}
-
-	trackNo, err := u.queueRepo.Enqueue(guildID, &domain.Music{
-		Query:            query,
-		QueuedAt:         time.Now(),
-		QueuedByID:       user.ID,
-		QueuedByUsername: user.Username,
-	})
-	if err != nil {
-		return -1, err
-	}
-
-	if pos > -1 {
-		err = u.queueRepo.Move(guildID, trackNo, pos)
-		if err != nil {
-			// TODO: remove from queue
-			return -1, err
-		}
-		trackNo = pos
-	}
-
-	return trackNo, nil
-}
-
-func (u *queueUseCase) List(guildID string) (*domain.Queue, error) {
+func (u *queueUseCase) Get(guildID string) (*domain.Queue, error) {
 	q, err := u.queueRepo.GetOne(guildID)
 	if errors.Is(err, domain.ErrQueueNotFound) {
 		q, err = u.queueRepo.Create(guildID)
@@ -72,19 +38,39 @@ func (u *queueUseCase) List(guildID string) (*domain.Queue, error) {
 	return q, nil
 }
 
-func (u *queueUseCase) SetLoopMode(guildID string, mode domain.LoopMode) error {
-	_, err := u.queueRepo.GetOne(guildID)
-	if errors.Is(err, domain.ErrQueueNotFound) {
-		_, err = u.queueRepo.Create(guildID)
-		if err != nil {
-			return err
-		}
-	}
-	if err != nil {
-		return err
+func (u *queueUseCase) AddQuery(q *domain.Queue, query string, user *discordgo.User, pos int) (int, error) {
+	if q == nil {
+		return -1, domain.ErrQueueNotFound
 	}
 
-	err = u.queueRepo.SetLoopMode(guildID, mode)
+	trackNo, err := u.queueRepo.Enqueue(q.GuildID, &domain.Music{
+		Query:            query,
+		QueuedAt:         time.Now(),
+		QueuedByID:       user.ID,
+		QueuedByUsername: user.Username,
+	})
+	if err != nil {
+		return -1, err
+	}
+
+	if pos > -1 {
+		err = u.queueRepo.Move(q.GuildID, trackNo, pos)
+		if err != nil {
+			// TODO: remove from queue
+			return -1, err
+		}
+		trackNo = pos
+	}
+
+	return trackNo, nil
+}
+
+func (u *queueUseCase) SetLoopMode(q *domain.Queue, mode domain.LoopMode) error {
+	if q == nil {
+		return domain.ErrQueueNotFound
+	}
+
+	err := u.queueRepo.SetLoopMode(q.GuildID, mode)
 	if err != nil {
 		return err
 	}

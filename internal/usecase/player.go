@@ -69,73 +69,6 @@ func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) 
 	return nil
 }
 
-func (u *playerUseCase) Stop(p *domain.Player) error {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-
-	sp, ok := u.speakers[p.GuildID]
-	if !ok || sp.Status == domain.PlayerStatusUninitialized {
-		return domain.ErrNotPlaying
-	}
-
-	sp.action <- domain.PlayerActionStop
-	return nil
-}
-
-func (u *playerUseCase) StopAll() {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-
-	for _, sp := range u.speakers {
-		if sp.Status != domain.PlayerStatusUninitialized {
-			sp.action <- domain.PlayerActionStop
-		}
-	}
-}
-
-func (u *playerUseCase) Jump(s *discordgo.Session, vch *discordgo.Channel, pos int) error {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-
-	sp, ok := u.speakers[vch.GuildID]
-	if !ok || sp.Status == domain.PlayerStatusUninitialized {
-		return domain.ErrNotPlaying
-	}
-
-	if sp.VoiceChannel.ID != vch.ID {
-		return domain.ErrInOtherChannel
-	}
-
-	err := u.queueRepo.JumpPos(vch.GuildID, pos-1) // compensate for queueRepo.Pop() call after skipping
-	if err != nil {
-		return err
-	}
-
-	sp.action <- domain.PlayerActionSkip
-	return nil
-}
-
-func (u *playerUseCase) Move(s *discordgo.Session, vch *discordgo.Channel, from, to int) error {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-
-	sp, ok := u.speakers[vch.GuildID]
-	if !ok || sp.Status == domain.PlayerStatusUninitialized {
-		return domain.ErrNotPlaying
-	}
-
-	if sp.VoiceChannel.ID != vch.ID {
-		return domain.ErrInOtherChannel
-	}
-
-	err := u.queueRepo.Move(vch.GuildID, from, to)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (u *playerUseCase) Get(guildID string) (*domain.Player, error) {
 	u.lock.RLock()
 	defer u.lock.RUnlock()
@@ -148,7 +81,68 @@ func (u *playerUseCase) Get(guildID string) (*domain.Player, error) {
 	return sp.Player, nil
 }
 
+func (u *playerUseCase) Stop(p *domain.Player) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	if p == nil {
+		return domain.ErrNotPlaying
+	}
+
+	sp, ok := u.speakers[p.GuildID]
+	if !ok || sp.Status == domain.PlayerStatusUninitialized {
+		return domain.ErrNotPlaying
+	}
+
+	sp.action <- domain.PlayerActionStop
+	return nil
+}
+
+func (u *playerUseCase) Jump(p *domain.Player, pos int) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	if p == nil {
+		return domain.ErrNotPlaying
+	}
+
+	sp, ok := u.speakers[p.GuildID]
+	if !ok || sp.Status == domain.PlayerStatusUninitialized {
+		return domain.ErrNotPlaying
+	}
+
+	err := u.queueRepo.JumpPos(p.GuildID, pos-1) // compensate for queueRepo.Pop() call after skipping
+	if err != nil {
+		return err
+	}
+
+	sp.action <- domain.PlayerActionSkip
+	return nil
+}
+
+func (u *playerUseCase) Move(p *domain.Player, from, to int) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	if p == nil {
+		return domain.ErrNotPlaying
+	}
+
+	sp, ok := u.speakers[p.GuildID]
+	if !ok || sp.Status == domain.PlayerStatusUninitialized {
+		return domain.ErrNotPlaying
+	}
+
+	err := u.queueRepo.Move(p.GuildID, from, to)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (u *playerUseCase) Reset(p *domain.Player) error {
+	if p == nil {
+		return domain.ErrNotPlaying
+	}
+
 	err := u.Stop(p)
 	if err != nil {
 		return err
@@ -162,6 +156,17 @@ func (u *playerUseCase) Reset(p *domain.Player) error {
 	p.CurrentStartTime = time.Time{}
 
 	return nil
+}
+
+func (u *playerUseCase) StopAll() {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+
+	for _, sp := range u.speakers {
+		if sp.Status != domain.PlayerStatusUninitialized {
+			sp.action <- domain.PlayerActionStop
+		}
+	}
 }
 
 func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch *discordgo.Channel) error {

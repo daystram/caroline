@@ -31,7 +31,10 @@ func continueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Int
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// check if user in voice channel
 		vs, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to let me continue playing!")
-		if err != nil && !errors.Is(err, discordgo.ErrStateNotFound) {
+		if errors.Is(err, discordgo.ErrStateNotFound) {
+			return
+		}
+		if err != nil {
 			log.Println("command: continue:", err)
 			return
 		}
@@ -50,7 +53,7 @@ func continueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Int
 
 		err = srv.UC.Player.Play(s, vch, sch)
 		if errors.Is(err, domain.ErrInOtherChannel) {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Embeds: []*discordgo.MessageEmbed{
@@ -60,9 +63,6 @@ func continueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Int
 					},
 				},
 			})
-			if err != nil {
-				log.Println("command: continue:", err)
-			}
 			return
 		}
 		if err != nil {

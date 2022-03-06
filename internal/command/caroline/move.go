@@ -7,6 +7,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
 )
@@ -45,12 +46,36 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// check if user in voice channel
 		vs, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to move queue!")
-		if err != nil && !errors.Is(err, discordgo.ErrStateNotFound) {
+		if errors.Is(err, discordgo.ErrStateNotFound) {
+			return
+		}
+		if err != nil {
 			log.Println("command: move:", err)
 			return
 		}
 
-		// get indices
+		// get player and queue
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
+			log.Println("command: move:", err)
+			return
+		}
+		q, err := srv.UC.Queue.Get(i.GuildID)
+		if err != nil {
+			log.Println("command: move:", err)
+			return
+		}
+
+		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			return
+		}
+		if !util.IsSameVC(p, vs) {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			return
+		}
+
+		// parse indices
 		f, ok := i.ApplicationCommandData().Options[0].Value.(float64)
 		if !ok {
 			log.Println("command: move: option type mismatch")
@@ -63,31 +88,8 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 		from, to := int(f)-1, int(t)-1
 
-		// move
-		q, err := srv.UC.Queue.List(i.GuildID)
-		if err != nil {
-			log.Println("command: move:", err)
-			return
-		}
-		if len(q.Tracks) == 0 {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "I'm not playing anything right now!",
-						},
-					},
-				},
-			})
-			if err != nil {
-				log.Println("command: move:", err)
-			}
-			return
-		}
-
 		if from < 0 || from > len(q.Tracks)-1 || to < 0 || to > len(q.Tracks)-1 {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Embeds: []*discordgo.MessageEmbed{
@@ -97,14 +99,11 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 					},
 				},
 			})
-			if err != nil {
-				log.Println("command: move:", err)
-			}
 			return
 		}
 
 		if from == q.CurrentPos || to == q.CurrentPos {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Embeds: []*discordgo.MessageEmbed{
@@ -114,18 +113,11 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 					},
 				},
 			})
-			if err != nil {
-				log.Println("command: move:", err)
-			}
 			return
 		}
 
-		vch, err := s.Channel(vs.ChannelID)
-		if err != nil {
-			log.Println("command: move:", err)
-			return
-		}
-		err = srv.UC.Player.Move(s, vch, from, to)
+		// move
+		err = srv.UC.Player.Move(p, from, to)
 		if err != nil {
 			log.Println("command: move:", err)
 			return
@@ -142,7 +134,7 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			},
 		})
 		if err != nil {
-			log.Println("command: stop:", err)
+			log.Println("command: move:", err)
 		}
 	}
 }

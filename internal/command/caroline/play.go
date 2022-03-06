@@ -47,30 +47,28 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// check if user in voice channel
 		vs, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to play something!")
-		if err != nil && !errors.Is(err, discordgo.ErrStateNotFound) {
+		if errors.Is(err, discordgo.ErrStateNotFound) {
+			return
+		}
+		if err != nil {
 			log.Println("command: play:", err)
 			return
 		}
 
+		// get player and queue
 		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
 			log.Println("command: play:", err)
 			return
 		}
-		if p != nil && p.Status != domain.PlayerStatusUninitialized && p.VoiceChannel.ID != vs.ChannelID {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "You have to be in the same voice channel as me to play music!",
-						},
-					},
-				},
-			})
-			if err != nil {
-				log.Println("command: play:", err)
-			}
+		q, err := srv.UC.Queue.Get(i.GuildID)
+		if err != nil {
+			log.Println("command: play:", err)
+			return
+		}
+
+		if util.IsPlayerReady(p) && !util.IsSameVC(p, vs) {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
 			return
 		}
 
@@ -82,12 +80,6 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 		query = strings.TrimSpace(query)
 
-		q, err := srv.UC.Queue.List(i.GuildID)
-		if err != nil {
-			log.Println("command: play:", err)
-			return
-		}
-
 		pos := -1
 		if len(i.ApplicationCommandData().Options) > 1 {
 			posRaw, ok := i.ApplicationCommandData().Options[1].Value.(string)
@@ -97,7 +89,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			}
 			p, err := util.ParseJumpPosOption(q, posRaw)
 			if err != nil {
-				err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
 						Embeds: []*discordgo.MessageEmbed{
@@ -107,16 +99,13 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 						},
 					},
 				})
-				if err != nil {
-					log.Println("command: play:", err)
-				}
 				return
 			}
 			pos = p
 		}
 
 		// enqueue
-		pos, err = srv.UC.Queue.AddQuery(i.GuildID, query, i.Member.User, pos)
+		pos, err = srv.UC.Queue.AddQuery(q, query, i.Member.User, pos)
 		if err != nil {
 			log.Println("command: play:", err)
 			return

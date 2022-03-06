@@ -31,37 +31,38 @@ func skipCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// check if user in voice channel
 		vs, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to skip current track!")
-		if err != nil && !errors.Is(err, discordgo.ErrStateNotFound) {
-			log.Println("command: skip:", err)
+		if errors.Is(err, discordgo.ErrStateNotFound) {
 			return
 		}
-
-		// get queue
-		q, err := srv.UC.Queue.List(i.GuildID)
 		if err != nil {
 			log.Println("command: skip:", err)
 			return
 		}
-		if len(q.Tracks) == 0 {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "I'm not playing anything right now!",
-						},
-					},
-				},
-			})
-			if err != nil {
-				log.Println("command: skip:", err)
-			}
+
+		// get player and queue
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
+			log.Println("command: skip:", err)
+			return
+		}
+		q, err := srv.UC.Queue.Get(i.GuildID)
+		if err != nil {
+			log.Println("command: skip:", err)
+			return
+		}
+
+		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			return
+		}
+		if !util.IsSameVC(p, vs) {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
 			return
 		}
 
 		// skip
 		if q.Loop != domain.LoopModeAll && q.CurrentPos == len(q.Tracks)-1 {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Embeds: []*discordgo.MessageEmbed{
@@ -71,40 +72,10 @@ func skipCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 					},
 				},
 			})
-			if err != nil {
-				log.Println("command: skip:", err)
-			}
 			return
 		}
 
-		p, err := srv.UC.Player.Get(i.GuildID)
-		if err != nil {
-			log.Println("command: skip:", err)
-			return
-		}
-		if p.VoiceChannel.ID != vs.ChannelID {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "You have to be in the same voice channel as me to play music!",
-						},
-					},
-				},
-			})
-			if err != nil {
-				log.Println("command: skip:", err)
-			}
-			return
-		}
-
-		vch, err := s.Channel(vs.ChannelID)
-		if err != nil {
-			log.Println("command: skip:", err)
-			return
-		}
-		err = srv.UC.Player.Jump(s, vch, (q.CurrentPos+1)%len(q.Tracks))
+		err = srv.UC.Player.Jump(p, (q.CurrentPos+1)%len(q.Tracks))
 		if err != nil {
 			log.Println("command: skip:", err)
 			return

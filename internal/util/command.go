@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/daystram/caroline/internal/domain"
 )
 
 func GetUserVS(s *discordgo.Session, i *discordgo.InteractionCreate, must bool, msg string) (*discordgo.VoiceState, error) {
@@ -26,4 +27,12 @@ func GetUserVS(s *discordgo.Session, i *discordgo.InteractionCreate, must bool, 
 	}
 
 	return vs, nil
+}
+
+func IsPlayerReady(p *domain.Player) bool {
+	return p != nil && p.Status != domain.PlayerStatusUninitialized
+}
+
+func IsSameVC(p *domain.Player, vs *discordgo.VoiceState) bool {
+	return p != nil && vs != nil && p.VoiceChannel.ID == vs.ChannelID
 }

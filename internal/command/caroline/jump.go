@@ -7,6 +7,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
 )
@@ -39,34 +40,36 @@ func jumpCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// check if user in voice channel
 		vs, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to jump queue!")
-		if err != nil && !errors.Is(err, discordgo.ErrStateNotFound) {
-			log.Println("command: jump:", err)
+		if errors.Is(err, discordgo.ErrStateNotFound) {
 			return
 		}
-
-		// get pos
-		q, err := srv.UC.Queue.List(i.GuildID)
 		if err != nil {
 			log.Println("command: jump:", err)
 			return
 		}
-		if len(q.Tracks) == 0 {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "I'm not playing anything right now!",
-						},
-					},
-				},
-			})
-			if err != nil {
-				log.Println("command: jump:", err)
-			}
+
+		// get player and queue
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
+			log.Println("command: jump:", err)
+			return
+		}
+		q, err := srv.UC.Queue.Get(i.GuildID)
+		if err != nil {
+			log.Println("command: jump:", err)
 			return
 		}
 
+		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			return
+		}
+		if !util.IsSameVC(p, vs) {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			return
+		}
+
+		// parse pos
 		posRaw, ok := i.ApplicationCommandData().Options[0].Value.(string)
 		if !ok {
 			log.Println("command: jump: option type mismatch")
@@ -74,7 +77,7 @@ func jumpCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 		pos, err := util.ParseJumpPosOption(q, posRaw)
 		if err != nil {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
 					Embeds: []*discordgo.MessageEmbed{
@@ -84,42 +87,11 @@ func jumpCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 					},
 				},
 			})
-			if err != nil {
-				log.Println("command: jump:", err)
-			}
 			return
 		}
 
 		// jump queue
-		p, err := srv.UC.Player.Get(i.GuildID)
-		if err != nil {
-			log.Println("command: jump:", err)
-			return
-		}
-		if p.VoiceChannel.ID != vs.ChannelID {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "You have to be in the same voice channel as me to play music!",
-						},
-					},
-				},
-			})
-			if err != nil {
-				log.Println("command: jump:", err)
-			}
-			return
-		}
-
-		vch, err := s.Channel(vs.ChannelID)
-		if err != nil {
-			log.Println("command: jump:", err)
-			return
-		}
-
-		err = srv.UC.Player.Jump(s, vch, pos)
+		err = srv.UC.Player.Jump(p, pos)
 		if err != nil {
 			log.Println("command: jump:", err)
 			return
@@ -130,7 +102,7 @@ func jumpCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			Data: &discordgo.InteractionResponseData{
 				Embeds: []*discordgo.MessageEmbed{
 					{
-						Description: fmt.Sprintf("Jumped to position **%d**", pos+1),
+						Description: fmt.Sprintf("Jumped to position **%d**!", pos+1),
 					},
 				},
 			},

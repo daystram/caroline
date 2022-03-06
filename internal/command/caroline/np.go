@@ -29,36 +29,24 @@ func RegisterNP(srv *server.Server, interactionHandlers map[string]func(*discord
 
 func npCommand(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		// get player
+		// get player and queue
 		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
 			log.Println("command: np:", err)
 			return
 		}
-
-		if p == nil || p.Status == domain.PlayerStatusUninitialized || p.Status == domain.PlayerStatusStopped {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "I'm not playing anything right now!",
-						},
-					},
-				},
-			})
-			if err != nil {
-				log.Println("command: np:", err)
-			}
-			return
-		}
-
-		// send embed
-		q, err := srv.UC.Queue.List(i.GuildID)
+		q, err := srv.UC.Queue.Get(i.GuildID)
 		if err != nil {
 			log.Println("command: np:", err)
 			return
 		}
+
+		if !util.IsPlayerReady(p) || p.Status == domain.PlayerStatusStopped || len(q.Tracks) == 0 {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			return
+		}
+
+		// respond
 		user, err := s.User(q.NowPlaying().QueuedByID)
 		if err != nil {
 			log.Println("command: np:", err)

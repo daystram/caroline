@@ -34,10 +34,10 @@ const (
 
 type PlayerUseCase interface {
 	Play(s *discordgo.Session, vch, sch *discordgo.Channel) error
-	Stop(p *Player) error
-	StopAll()
-	Jump(s *discordgo.Session, vch *discordgo.Channel, pos int) error
-	Move(s *discordgo.Session, vch *discordgo.Channel, from, to int) error
 	Get(guildID string) (*Player, error)
+	Stop(p *Player) error
+	Jump(p *Player, pos int) error
+	Move(p *Player, from, to int) error
 	Reset(p *Player) error
+	StopAll()
 }

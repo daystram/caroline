@@ -30,52 +30,38 @@ func RegisterStop(srv *server.Server, interactionHandlers map[string]func(*disco
 func stopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// check if user in voice channel
-		_, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to stop me!")
-		if err != nil && !errors.Is(err, discordgo.ErrStateNotFound) {
-			log.Println("command: stop:", err)
+		vs, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to stop me!")
+		if errors.Is(err, discordgo.ErrStateNotFound) {
 			return
 		}
-
-		// stop player
-		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil {
 			log.Println("command: stop:", err)
 			return
 		}
 
+		// get player and queue
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
+			log.Println("command: stop:", err)
+			return
+		}
+		q, err := srv.UC.Queue.Get(i.GuildID)
+		if err != nil {
+			log.Println("command: stop:", err)
+			return
+		}
+
+		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseNotPlaying)
+			return
+		}
+		if !util.IsSameVC(p, vs) {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			return
+		}
+
+		// stop player
 		err = srv.UC.Player.Stop(p)
-		if errors.Is(err, domain.ErrInOtherChannel) {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "You have to be in the same voice channel to stop me!",
-						},
-					},
-				},
-			})
-			if err != nil {
-				log.Println("command: stop:", err)
-			}
-			return
-		}
-		if errors.Is(err, domain.ErrNotPlaying) {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "I'm not playing anything right now!",
-						},
-					},
-				},
-			})
-			if err != nil {
-				log.Println("command: stop:", err)
-			}
-			return
-		}
 		if err != nil {
 			log.Println("command: stop:", err)
 			return
