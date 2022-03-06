@@ -10,6 +10,7 @@ import (
 
 	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/server"
+	"github.com/daystram/caroline/internal/util"
 )
 
 const loopCommandName = "loop"
@@ -44,24 +45,8 @@ func RegisterLoop(srv *server.Server, interactionHandlers map[string]func(*disco
 func loopCommand(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// check if user in voice channel
-		_, err := s.State.VoiceState(i.GuildID, i.Member.User.ID)
-		if errors.Is(err, discordgo.ErrStateNotFound) {
-			err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "You have to be in a voice channel to change looping mode!",
-						},
-					},
-				},
-			})
-			if err != nil {
-				log.Println("command: loop:", err)
-			}
-			return
-		}
-		if err != nil {
+		_, err := util.GetUserVS(s, i, true, "You have to be in a voice channel to change looping mode!")
+		if err != nil && !errors.Is(err, discordgo.ErrStateNotFound) {
 			log.Println("command: loop:", err)
 			return
 		}
