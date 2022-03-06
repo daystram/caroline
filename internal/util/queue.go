@@ -88,7 +88,7 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 	}
 }
 
-func ParseJumpPosOption(q *domain.Queue, raw string) (int, error) {
+func ParseRelativePosOption(q *domain.Queue, raw string) (int, error) {
 	abs := regexp.MustCompile("^[0-9]+$")
 	rel := regexp.MustCompile("^[-+][0-9]+$")
 

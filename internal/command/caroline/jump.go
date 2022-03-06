@@ -76,7 +76,7 @@ func jumpCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			log.Println("command: jump: option type mismatch")
 			return
 		}
-		pos, err := util.ParseJumpPosOption(q, posRaw)
+		pos, err := util.ParseRelativePosOption(q, posRaw)
 		if err != nil {
 			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
