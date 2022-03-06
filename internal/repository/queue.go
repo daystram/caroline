@@ -149,6 +149,27 @@ func (r *queueRepository) Move(guildID string, from, to int) error {
 	return nil
 }
 
+func (r *queueRepository) Remove(guildID string, pos int) error {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	q, ok := r.queues[guildID]
+	if !ok {
+		return domain.ErrQueueNotFound
+	}
+	if pos < 0 || pos > len(q.Tracks)-1 {
+		return domain.ErrQueueOutOfBounds
+	}
+
+	q.Tracks = append(q.Tracks[:pos], q.Tracks[pos+1:]...)
+
+	if pos <= q.CurrentPos {
+		q.CurrentPos--
+	}
+
+	return nil
+}
+
 func (r *queueRepository) SetLoopMode(guildID string, mode domain.LoopMode) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()

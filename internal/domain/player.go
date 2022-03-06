@@ -39,6 +39,7 @@ type PlayerUseCase interface {
 	Stop(p *Player) error
 	Jump(p *Player, pos int) error
 	Move(p *Player, from, to int) error
+	Remove(p *Player, pos int) error
 	Reset(p *Player) error
 	Kick(p *Player) error
 	KickAll()

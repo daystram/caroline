@@ -138,6 +138,26 @@ func (u *playerUseCase) Move(p *domain.Player, from, to int) error {
 	return nil
 }
 
+func (u *playerUseCase) Remove(p *domain.Player, pos int) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	if p == nil {
+		return domain.ErrNotPlaying
+	}
+
+	sp, ok := u.speakers[p.GuildID]
+	if !ok || sp.Status == domain.PlayerStatusUninitialized {
+		return domain.ErrNotPlaying
+	}
+
+	err := u.queueRepo.Remove(p.GuildID, pos)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (u *playerUseCase) Reset(p *domain.Player) error {
 	if p == nil {
 		return domain.ErrNotPlaying

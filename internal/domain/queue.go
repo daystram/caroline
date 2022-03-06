@@ -49,7 +49,8 @@ type QueueRepository interface {
 	Enqueue(guildID string, music *Music) (int, error)
 	Pop(guildID string) (*Music, error)
 	JumpPos(guildID string, pos int) error
-	Move(guildID string, track, pos int) error
+	Move(guildID string, from, to int) error
+	Remove(guildID string, pos int) error
 	SetLoopMode(guildID string, mode LoopMode) error
 	Clear(guildID string) error
 }
