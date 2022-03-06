@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	yt "github.com/kkdai/youtube/v2"

@@ -158,14 +158,27 @@ func (u *playerUseCase) Reset(p *domain.Player) error {
 	return nil
 }
 
-func (u *playerUseCase) StopAll() {
-	u.lock.Lock()
-	defer u.lock.Unlock()
+func (u *playerUseCase) Kick(p *domain.Player) error {
+	if p == nil {
+		return domain.ErrNotPlaying
+	}
 
+	err := u.Reset(p)
+	if err != nil {
+		return err
+	}
+
+	err = p.Conn.Disconnect()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (u *playerUseCase) KickAll() {
 	for _, sp := range u.speakers {
-		if sp.Status != domain.PlayerStatusUninitialized {
-			sp.action <- domain.PlayerActionStop
-		}
+		_ = u.Kick(sp.Player)
 	}
 }
 
@@ -180,7 +193,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 	sp.Status = domain.PlayerStatusStopped
 
 	defer func() {
-		sp.Conn.Close()
+		_ = sp.Conn.Disconnect()
 		sp.Conn = nil
 		sp.VoiceChannel = nil
 		sp.StatusChannel = nil
@@ -193,9 +206,11 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 		case domain.PlayerStatusPlaying:
 			music, err := u.queueRepo.Pop(sp.GuildID)
 			if err != nil {
-				return err
+				log.Println("player:", err)
+				sp.Status = domain.PlayerStatusStopped
+				break statusSwitch
 			}
-			if music == nil {
+			if music == nil { // end of queue
 				sp.Status = domain.PlayerStatusStopped
 				break statusSwitch
 			}
