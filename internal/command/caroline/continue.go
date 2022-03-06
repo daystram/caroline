@@ -39,6 +39,18 @@ func continueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Int
 			return
 		}
 
+		// get player
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
+			log.Println("command: continue:", err)
+			return
+		}
+
+		if util.IsPlayerReady(p) && !util.IsSameVC(p, vs) {
+			_ = s.InteractionRespond(i.Interaction, util.InteractionResponseDifferentVC)
+			return
+		}
+
 		// continue player
 		vch, err := s.Channel(vs.ChannelID)
 		if err != nil {
@@ -52,19 +64,6 @@ func continueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Int
 		}
 
 		err = srv.UC.Player.Play(s, vch, sch)
-		if errors.Is(err, domain.ErrInOtherChannel) {
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Embeds: []*discordgo.MessageEmbed{
-						{
-							Description: "I am already playing in another voice channel!",
-						},
-					},
-				},
-			})
-			return
-		}
 		if err != nil {
 			log.Println("command: continue:", err)
 			return
