@@ -9,6 +9,7 @@ import (
 	"github.com/bwmarrin/dgvoice"
 	"github.com/bwmarrin/discordgo"
 
+	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
 	"github.com/daystram/caroline/internal/util"
 )
@@ -244,7 +245,8 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 				if err != nil {
 					_, _ = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
 						Title:       "Not Found",
-						Description: fmt.Sprintf("Could not find `%s`", music.Query),
+						Description: fmt.Sprintf("Could not find `%s`!", music.Query),
+						Color:       common.ColorError,
 					})
 					log.Println("player:", err)
 					break statusSwitch
