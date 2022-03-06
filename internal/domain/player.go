@@ -30,6 +30,7 @@ const (
 	PlayerActionPlay PlayerAction = iota
 	PlayerActionSkip
 	PlayerActionStop
+	PlayerActionKick
 )
 
 type PlayerUseCase interface {

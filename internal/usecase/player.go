@@ -168,11 +168,16 @@ func (u *playerUseCase) Kick(p *domain.Player) error {
 		return err
 	}
 
-	err = p.Conn.Disconnect()
-	if err != nil {
-		return err
-	}
+	u.lock.Lock()
+	defer u.lock.Unlock()
 
+	sp, ok := u.speakers[p.GuildID]
+	if !ok {
+		return domain.ErrNotPlaying
+	}
+	delete(u.speakers, p.GuildID)
+
+	sp.action <- domain.PlayerActionKick
 	return nil
 }
 
@@ -242,7 +247,8 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 
 			user, err := s.User(music.QueuedByID)
 			if err != nil {
-				return err
+				log.Println("player:", err)
+				break statusSwitch
 			}
 			sp.CurrentStartTime = time.Now()
 
@@ -270,6 +276,10 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 						stop <- true
 						sp.Status = domain.PlayerStatusStopped
 						break statusSwitch
+					case domain.PlayerActionKick:
+						stop <- true
+						sp.Status = domain.PlayerStatusStopped
+						return nil
 					}
 				case <-next:
 					break waitAudio
@@ -281,6 +291,8 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 			case domain.PlayerActionPlay:
 				sp.Status = domain.PlayerStatusPlaying
 				break statusSwitch
+			case domain.PlayerActionKick:
+				return nil
 			}
 		}
 	}
