@@ -104,7 +104,7 @@ func (r *queueRepository) JumpPos(guildID string, pos int) error {
 	return nil
 }
 
-func (r *queueRepository) Move(guildID string, track, pos int) error {
+func (r *queueRepository) Move(guildID string, from, to int) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -112,27 +112,38 @@ func (r *queueRepository) Move(guildID string, track, pos int) error {
 	if !ok {
 		return domain.ErrQueueNotFound
 	}
-	if track < 0 || track > len(q.Tracks)-1 {
+	if from < 0 || from > len(q.Tracks)-1 {
 		return domain.ErrQueueOutOfBounds
 	}
-	if pos < 0 || pos > len(q.Tracks)-1 {
+	if to < 0 || to > len(q.Tracks)-1 {
 		return domain.ErrQueueOutOfBounds
 	}
 
-	a, b := track, pos
-	if track > pos {
-		a, b = pos, track
+	if from < to {
+		temp := q.Tracks[from]
+		for i := from; i < to; i++ {
+			q.Tracks[i] = q.Tracks[i+1]
+		}
+		q.Tracks[to] = temp
+		if from < q.CurrentPos && q.CurrentPos <= to {
+			q.CurrentPos--
+		}
+		if q.CurrentPos == from {
+			q.CurrentPos = to
+		}
 	}
-
-	t := q.Tracks[b]
-	copy(q.Tracks[a+1:b+1], q.Tracks[a:b])
-	q.Tracks[a] = t
-
-	if track < q.CurrentPos && pos >= q.CurrentPos {
-		q.CurrentPos--
-	}
-	if track > q.CurrentPos && pos <= q.CurrentPos {
-		q.CurrentPos++
+	if to < from {
+		temp := q.Tracks[from]
+		for i := from; i > to; i-- {
+			q.Tracks[i] = q.Tracks[i-1]
+		}
+		q.Tracks[to] = temp
+		if to <= q.CurrentPos && q.CurrentPos < from {
+			q.CurrentPos++
+		}
+		if q.CurrentPos == from {
+			q.CurrentPos = to
+		}
 	}
 
 	return nil
