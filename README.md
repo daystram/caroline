@@ -20,6 +20,13 @@ $ go get -u github.com/daystram/caroline/cmd/caroline
 $ go install github.com/daystram/caroline/cmd/caroline@latest
 ```
 
+## Requirements
+
+To function properly, the following tools and library must be installed:
+
+- [ffmpeg](https://ffmpeg.org/)
+- [Opus](https://opus-codec.org/) development library
+
 ## Usage
 
 After providing the required configuration, the bot can simply be run as follows:
