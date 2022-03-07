@@ -36,6 +36,8 @@ jobs:
           push: true
           context: .
           cache-from: daystram/${{ env.APPLICATION }}:latest
+          build-args: |
+            VERSION=${GITHUB_REF##*/}
           tags: |
             daystram/${{ env.APPLICATION }}:latest
             daystram/${{ env.APPLICATION }}:${{ steps.semver.outputs.major }}
