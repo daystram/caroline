@@ -32,6 +32,7 @@ func Main(args []string) error {
 	if err != nil {
 		return err
 	}
+	log.Println("init: version:", config.Version())
 
 	if cfg.DebugGuildID != "" {
 		log.Println("init: development mode: guildID:", cfg.DebugGuildID)

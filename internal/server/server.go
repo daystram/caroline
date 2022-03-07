@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 
@@ -13,6 +14,7 @@ type Server struct {
 	Session *discordgo.Session
 	UC      useCases
 
+	StartTime    time.Time
 	DebugGuildID string
 }
 
@@ -42,6 +44,7 @@ func Start(cfg *config.Config, musicUC domain.MusicUseCase, playerUC domain.Play
 			Player: playerUC,
 			Queue:  queueUC,
 		},
+		StartTime:    time.Now(),
 		DebugGuildID: cfg.DebugGuildID,
 	}, nil
 }

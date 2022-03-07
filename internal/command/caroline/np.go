@@ -61,7 +61,7 @@ func npCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interacti
 			},
 		})
 		if err != nil {
-			log.Println("player:", err)
+			log.Println("command: np:", err)
 		}
 	}
 }

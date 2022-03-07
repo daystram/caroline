@@ -43,4 +43,6 @@ type PlayerUseCase interface {
 	Reset(p *Player) error
 	Kick(p *Player) error
 	KickAll()
+	Count() int
+	TotalPlaytime() time.Duration
 }
