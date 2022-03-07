@@ -39,11 +39,7 @@ func NewMusicRepository(ytAPIKey, spClientID, spClientSecret string) (domain.Mus
 		ClientSecret: spClientSecret,
 		TokenURL:     spotifyauth.TokenURL,
 	}
-	token, err := config.Token(context.Background())
-	if err != nil {
-		return nil, err
-	}
-	spAPI := spotify.New(spotifyauth.New().Client(context.Background(), token))
+	spAPI := spotify.New(config.Client(context.Background()))
 
 	return &musicRepository{
 		ytAPI:    ytAPI,
