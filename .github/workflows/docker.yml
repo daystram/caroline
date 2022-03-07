@@ -37,7 +37,7 @@ jobs:
           context: .
           cache-from: daystram/${{ env.APPLICATION }}:latest
           build-args: |
-            VERSION=${GITHUB_REF##*/}
+            VERSION=v${{ steps.semver.outputs.major }}.${{ steps.semver.outputs.minor }}.${{ steps.semver.outputs.patch }}
           tags: |
             daystram/${{ env.APPLICATION }}:latest
             daystram/${{ env.APPLICATION }}:${{ steps.semver.outputs.major }}
