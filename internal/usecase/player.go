@@ -41,7 +41,8 @@ var _ domain.PlayerUseCase = (*playerUseCase)(nil)
 type speaker struct {
 	*domain.Player
 
-	action chan domain.PlayerAction
+	playtime time.Duration
+	action   chan domain.PlayerAction
 }
 
 func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) error {
@@ -216,6 +217,25 @@ func (u *playerUseCase) KickAll() {
 	}
 }
 
+func (u *playerUseCase) Count() int {
+	u.lock.RLock()
+	defer u.lock.RUnlock()
+
+	return len(u.speakers)
+}
+
+func (u *playerUseCase) TotalPlaytime() time.Duration {
+	u.lock.RLock()
+	defer u.lock.RUnlock()
+
+	var t time.Duration
+	for _, sp := range u.speakers {
+		t += sp.playtime
+	}
+
+	return t
+}
+
 func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch *discordgo.Channel) error {
 	wlog := util.NewPlayerWorkerLogger(sp.GuildID)
 	wlog("starting worker")
@@ -334,6 +354,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 					break wait
 				}
 			}
+			sp.playtime += time.Since(sp.CurrentStartTime)
 
 		case domain.PlayerStatusStopped:
 			switch <-sp.action {
