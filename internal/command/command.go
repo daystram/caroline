@@ -60,7 +60,7 @@ func UnregisterAll(srv *server.Server) error {
 	}
 
 	for _, c := range cmds {
-		_ = srv.Session.ApplicationCommandDelete(srv.Session.State.User.ID, "", c.ID)
+		_ = srv.Session.ApplicationCommandDelete(srv.Session.State.User.ID, srv.DebugGuildID, c.ID)
 	}
 
 	return nil
