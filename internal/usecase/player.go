@@ -15,6 +15,12 @@ import (
 )
 
 func NewPlayerUseCase(musicRepo domain.MusicRepository, queueRepo domain.QueueRepository) (domain.PlayerUseCase, error) {
+	dgvoice.OnError = func(str string, err error) {
+		if err != nil {
+			log.Println("player:", err)
+		}
+	}
+
 	return &playerUseCase{
 		musicRepo: musicRepo,
 		queueRepo: queueRepo,
@@ -66,7 +72,9 @@ func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) 
 		}
 	}
 
-	sp.action <- domain.PlayerActionPlay
+	if sp.Status != domain.PlayerStatusPlaying {
+		sp.action <- domain.PlayerActionPlay
+	}
 	return nil
 }
 
@@ -209,8 +217,12 @@ func (u *playerUseCase) KickAll() {
 }
 
 func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch *discordgo.Channel) error {
+	wlog := util.NewPlayerWorkerLogger(sp.GuildID)
+	wlog("starting worker")
+
 	conn, err := s.ChannelVoiceJoin(vch.GuildID, vch.ID, false, false)
 	if err != nil {
+		wlog(err)
 		return err
 	}
 	sp.Conn = conn
@@ -219,6 +231,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 	sp.Status = domain.PlayerStatusStopped
 
 	defer func() {
+		wlog("stopping worker")
 		_ = sp.Conn.Disconnect()
 		sp.Conn = nil
 		sp.VoiceChannel = nil
@@ -232,7 +245,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 		case domain.PlayerStatusPlaying:
 			music, err := u.queueRepo.Pop(sp.GuildID)
 			if err != nil {
-				log.Println("player:", err)
+				wlog(err)
 				sp.Status = domain.PlayerStatusStopped
 				break statusSwitch
 			}
@@ -248,7 +261,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 						Description: fmt.Sprintf("Could not find `%s`!", music.Query),
 						Color:       common.ColorError,
 					})
-					log.Println("player:", err)
+					wlog(err)
 					break statusSwitch
 				}
 				music.Title = res.Title
@@ -262,54 +275,68 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 			if err != nil {
 				_, _ = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
 					Description: "Failed retrieving stream URL!",
+					Color:       common.ColorError,
 				})
-				log.Println("player:", err)
+				wlog(err)
 				break statusSwitch
 			}
 
 			user, err := s.User(music.QueuedByID)
 			if err != nil {
-				log.Println("player:", err)
+				wlog(err)
 				break statusSwitch
 			}
 			sp.CurrentStartTime = time.Now()
 
-			stop := make(chan bool)
-			next := make(chan bool)
+			stop := make(chan bool, 1)
+			next := make(chan bool, 1)
 			go func() {
 				_, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, util.FormatNowPlaying(music, user, sp.CurrentStartTime))
 				if err != nil {
-					log.Println("player:", err)
+					wlog(err)
 				}
 
-				dgvoice.PlayAudioFile(sp.Conn, surl, stop)
+				if sp.Conn != nil && sp.Conn.Ready {
+					dgvoice.PlayAudioFile(sp.Conn, surl, stop)
+				} else {
+					wlog("stop: conn is not ready")
+					sp.Status = domain.PlayerStatusStopped
+				}
+
 				next <- true
 			}()
 
-		waitAudio:
+		wait:
 			for {
 				select {
 				case act := <-sp.action:
 					switch act {
 					case domain.PlayerActionSkip:
 						stop <- true
-						break waitAudio
+						break wait
 					case domain.PlayerActionStop:
 						stop <- true
 						sp.Status = domain.PlayerStatusStopped
-						break statusSwitch
+						break wait
 					case domain.PlayerActionKick:
 						stop <- true
 						sp.Status = domain.PlayerStatusStopped
 						return nil
+					default:
+						wlog("unknown action:", act)
 					}
 				case <-next:
-					break waitAudio
+					stop <- true
+					break wait
+				case <-time.After(music.Duration + 5*time.Second):
+					stop <- true
+					wlog("timeout: playtime exceeded")
+					break wait
 				}
 			}
+
 		case domain.PlayerStatusStopped:
-			act := <-sp.action
-			switch act {
+			switch <-sp.action {
 			case domain.PlayerActionPlay:
 				sp.Status = domain.PlayerStatusPlaying
 				break statusSwitch
