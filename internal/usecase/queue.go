@@ -2,9 +2,6 @@ package usecase
 
 import (
 	"errors"
-	"time"
-
-	"github.com/bwmarrin/discordgo"
 
 	"github.com/daystram/caroline/internal/domain"
 )
@@ -38,17 +35,12 @@ func (u *queueUseCase) Get(guildID string) (*domain.Queue, error) {
 	return q, nil
 }
 
-func (u *queueUseCase) AddQuery(q *domain.Queue, query string, user *discordgo.User, pos int) (int, error) {
+func (u *queueUseCase) Enqueue(q *domain.Queue, music *domain.Music, pos int) (int, error) {
 	if q == nil {
 		return -1, domain.ErrQueueNotFound
 	}
 
-	trackNo, err := u.queueRepo.Enqueue(q.GuildID, &domain.Music{
-		Query:            query,
-		QueuedAt:         time.Now(),
-		QueuedByID:       user.ID,
-		QueuedByUsername: user.Username,
-	})
+	trackNo, err := u.queueRepo.Enqueue(q.GuildID, music)
 	if err != nil {
 		return -1, err
 	}

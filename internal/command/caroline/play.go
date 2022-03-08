@@ -96,36 +96,77 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			pos = p
 		}
 
-		// enqueue
-		pos, err = srv.UC.Queue.AddQuery(q, query, i.Member.User, pos)
-		if err != nil {
-			log.Println("command: play:", err)
-			return
-		}
-
+		// initial response
 		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Embeds: []*discordgo.MessageEmbed{
 					{
-						Title:       "Added to Queue",
-						Description: query,
-						Color:       common.ColorPlay,
-						Author: &discordgo.MessageEmbedAuthor{
-							Name:    i.Member.User.Username,
-							IconURL: discordgo.EndpointUserAvatar(i.Member.User.ID, i.Member.User.Avatar),
-						},
-						Fields: []*discordgo.MessageEmbedField{
-							{
-								Name:   "Position",
-								Value:  fmt.Sprintf("%d", pos+1),
-								Inline: true,
-							},
-						},
+						Description: "Queueing...",
+						Color:       common.ColorAction,
 					},
 				},
 			},
 		})
+		if err != nil {
+			log.Println("command: play:", err)
+		}
+
+		// parse musics
+		meta, musics, err := srv.UC.Music.Parse(query, i.Member.User)
+		if err != nil {
+			log.Println("command: play:", err)
+			return
+		}
+
+		// enqueue
+		for _, m := range musics {
+			pos, err = srv.UC.Queue.Enqueue(q, m, pos)
+			if err != nil {
+				log.Println("command: play:", err)
+			}
+			pos++ // will also be 1-indexed after leaving this loop
+		}
+
+		// respond queue summary
+		var resp *discordgo.MessageEmbed
+		switch musics[0].Source {
+		case domain.MusicSourceSpotifyPlaylist:
+			resp = &discordgo.MessageEmbed{
+				Title:       "Added to Queue",
+				Description: fmt.Sprintf("**%d** items from **%s** %s added!", len(musics), meta, musics[0].Source),
+				Color:       common.ColorPlay,
+				Author: &discordgo.MessageEmbedAuthor{
+					Name:    i.Member.User.Username,
+					IconURL: discordgo.EndpointUserAvatar(i.Member.User.ID, i.Member.User.Avatar),
+				},
+				Fields: []*discordgo.MessageEmbedField{
+					{
+						Name:   "Position",
+						Value:  fmt.Sprintf("%d - %d", pos+1-len(musics), pos), // pos is 1-indexed
+						Inline: true,
+					},
+				},
+			}
+		default:
+			resp = &discordgo.MessageEmbed{
+				Title:       "Added to Queue",
+				Description: query,
+				Color:       common.ColorPlay,
+				Author: &discordgo.MessageEmbedAuthor{
+					Name:    i.Member.User.Username,
+					IconURL: discordgo.EndpointUserAvatar(i.Member.User.ID, i.Member.User.Avatar),
+				},
+				Fields: []*discordgo.MessageEmbedField{
+					{
+						Name:   "Position",
+						Value:  fmt.Sprintf("%d", pos),
+						Inline: true,
+					},
+				},
+			}
+		}
+		_, err = s.ChannelMessageSendEmbed(i.ChannelID, resp)
 		if err != nil {
 			log.Println("command: play:", err)
 		}

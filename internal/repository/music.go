@@ -2,9 +2,8 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"regexp"
-	"strings"
 
 	yt "github.com/kkdai/youtube/v2"
 	"github.com/zmb3/spotify/v2"
@@ -21,84 +20,108 @@ const (
 	youtubeURLPattern = "https://youtu.be/"
 )
 
-var (
-	spotifyRegex = regexp.MustCompile(`spotify\.com\/track\/(?P<trackID>[^\?&"'>]+)`)
-	youtubeRegex = regexp.MustCompile(`(youtu\.be\/|youtube\.com\/(watch\?(.*&)?v=|(embed|v)\/))(?P<videoID>[^\?&"'>]+)`)
-)
-
 func NewMusicRepository(ytAPIKey, spClientID, spClientSecret string) (domain.MusicRepository, error) {
 	// youtube
-	ytAPI, err := youtube.NewService(context.Background(), option.WithAPIKey(ytAPIKey))
+	ytCtx := context.Background()
+	ytAPI, err := youtube.NewService(ytCtx, option.WithAPIKey(ytAPIKey))
 	if err != nil {
 		return nil, err
 	}
 
 	// spotify
+	spCtx := context.Background()
 	config := &clientcredentials.Config{
 		ClientID:     spClientID,
 		ClientSecret: spClientSecret,
 		TokenURL:     spotifyauth.TokenURL,
 	}
-	spAPI := spotify.New(config.Client(context.Background()))
+	spAPI := spotify.New(config.Client(spCtx))
 
 	return &musicRepository{
 		ytAPI:    ytAPI,
-		spAPI:    spAPI,
+		ytCtx:    ytCtx,
 		ytClient: yt.Client{},
+		spAPI:    spAPI,
+		spCtx:    spCtx,
 	}, nil
 }
 
 type musicRepository struct {
-	ytAPI *youtube.Service
-	spAPI *spotify.Client
-
+	ytAPI    *youtube.Service
+	ytCtx    context.Context
 	ytClient yt.Client
+
+	spAPI *spotify.Client
+	spCtx context.Context
 }
 
 var _ domain.MusicRepository = (*musicRepository)(nil)
 
-func (r *musicRepository) SearchOne(query string) (*domain.Music, error) {
-	query = strings.TrimSpace(query)
+func (r *musicRepository) GetSpotifyPlaylist(id string) (*spotify.FullPlaylist, []spotify.PlaylistTrack, error) {
+	p, err := r.spAPI.GetPlaylist(r.spCtx, spotify.ID(id))
+	if err != nil {
+		return nil, nil, err
+	}
 
-	var videoID string
-	switch {
-	case spotifyRegex.MatchString(query):
-		trackID := spotifyRegex.FindStringSubmatch(query)[spotifyRegex.SubexpIndex("trackID")]
-		track, err := r.spAPI.GetTrack(context.Background(), spotify.ID(trackID), spotify.Limit(1))
-		if err != nil {
-			return nil, err
+	t := make([]spotify.PlaylistTrack, 0, p.Tracks.Total)
+	for {
+		t = append(t, p.Tracks.Tracks...)
+		err = r.spAPI.NextPage(r.spCtx, &p.Tracks)
+		if errors.Is(err, spotify.ErrNoMorePages) {
+			break
 		}
-		query = fmt.Sprintf("%s - %s", track.Name, track.Artists[0].Name)
-	case youtubeRegex.MatchString(query):
-		videoID = youtubeRegex.FindStringSubmatch(query)[youtubeRegex.SubexpIndex("videoID")]
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return p, t, nil
+}
+
+func (r *musicRepository) Load(m *domain.Music) error {
+	var videoID string
+	switch m.Source {
+	case domain.MusicSourceSpotifyPlaylist, domain.MusicSourceSpotifyTrack:
+		track, err := r.spAPI.GetTrack(r.spCtx, spotify.ID(m.SpotifyTrackID), spotify.Limit(1))
+		if err != nil {
+			return err
+		}
+		m.Query = fmt.Sprintf("%s - %s", track.Name, track.Artists[0].Name)
+		// continue searching below
+
+	case domain.MusicSourceYouTubeVideo:
+		videoID = m.YouTubeVideoID
+
+	case domain.MusicSourceSearch:
+		// continue searching below
 	}
 
 	if videoID == "" {
-		resp, err := r.ytAPI.Search.List([]string{"id"}).Q(query).MaxResults(1).Do()
+		resp, err := r.ytAPI.Search.List([]string{"id"}).Q(m.Query).MaxResults(1).Do()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if len(resp.Items) == 0 {
-			return nil, domain.ErrMusicNotFound
+			return domain.ErrMusicNotFound
 		}
 		videoID = resp.Items[0].Id.VideoId
 	}
 
 	resp, err := r.ytAPI.Videos.List([]string{"id", "snippet", "contentDetails"}).Id(videoID).Do()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if len(resp.Items) == 0 {
-		return nil, domain.ErrMusicNotFound
+		return domain.ErrMusicNotFound
 	}
 
-	return &domain.Music{
-		Query:     query,
-		Title:     resp.Items[0].Snippet.Title,
-		URL:       fmt.Sprintf("%s%s", youtubeURLPattern, resp.Items[0].Id),
-		Thumbnail: resp.Items[0].Snippet.Thumbnails.High.Url,
-		Duration:  util.ParseYouTubeDuration(resp.Items[0].ContentDetails.Duration),
-	}, nil
+	m.Title = resp.Items[0].Snippet.Title
+	m.URL = fmt.Sprintf("%s%s", youtubeURLPattern, resp.Items[0].Id)
+	m.Thumbnail = resp.Items[0].Snippet.Thumbnails.High.Url
+	m.Duration = util.ParseYouTubeDuration(resp.Items[0].ContentDetails.Duration)
+	m.Loaded = true
+
+	return nil
 }
 
 func (r *musicRepository) GetStreamURL(music *domain.Music) (string, error) {

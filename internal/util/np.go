@@ -26,6 +26,11 @@ func FormatNowPlaying(music *domain.Music, user *discordgo.User, start time.Time
 				Inline: false,
 			},
 			{
+				Name:   "Origin",
+				Value:  music.Source.String(),
+				Inline: true,
+			},
+			{
 				Name:   "Duration",
 				Value:  fmt.Sprintf("`%s/%s`", time.Since(start).String(), music.Duration.String()),
 				Inline: true,
@@ -33,11 +38,6 @@ func FormatNowPlaying(music *domain.Music, user *discordgo.User, start time.Time
 			{
 				Name:   "Queued By",
 				Value:  user.Mention(),
-				Inline: true,
-			},
-			{
-				Name:   "Queued At",
-				Value:  music.QueuedAt.Format(time.Kitchen),
 				Inline: true,
 			},
 		},
