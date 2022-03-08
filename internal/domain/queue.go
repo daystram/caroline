@@ -1,7 +1,5 @@
 package domain
 
-import "github.com/bwmarrin/discordgo"
-
 type Queue struct {
 	GuildID    string
 	Tracks     []*Music
@@ -39,7 +37,7 @@ func (q *Queue) NowPlaying() *Music {
 
 type QueueUseCase interface {
 	Get(guildID string) (*Queue, error)
-	AddQuery(q *Queue, query string, user *discordgo.User, pos int) (int, error)
+	Enqueue(q *Queue, music *Music, pos int) (int, error)
 	SetLoopMode(q *Queue, mode LoopMode) error
 }
 
