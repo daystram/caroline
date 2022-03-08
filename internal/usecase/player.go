@@ -274,7 +274,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 				break statusSwitch
 			}
 			if !music.Loaded {
-				res, err := u.musicRepo.SearchOne(music.Query)
+				err := u.musicRepo.Load(music)
 				if err != nil {
 					_, _ = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
 						Title:       "Not Found",
@@ -284,11 +284,6 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 					wlog(err)
 					break statusSwitch
 				}
-				music.Title = res.Title
-				music.URL = res.URL
-				music.Thumbnail = res.Thumbnail
-				music.Duration = res.Duration
-				music.Loaded = true
 			}
 
 			surl, err := u.musicRepo.GetStreamURL(music)
