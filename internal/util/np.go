@@ -12,7 +12,25 @@ import (
 
 func FormatNowPlaying(music *domain.Music, user *discordgo.User, start time.Time) *discordgo.MessageEmbed {
 	if !music.Loaded {
-		panic("should not format unloaded music")
+		if !music.Loaded {
+			return &discordgo.MessageEmbed{
+				Title:       "About to Play",
+				Description: fmt.Sprintf(music.Query),
+				Color:       common.ColorPlay,
+				Fields: []*discordgo.MessageEmbedField{
+					{
+						Name:   "Origin",
+						Value:  music.Source.String(),
+						Inline: true,
+					},
+					{
+						Name:   "Queued By",
+						Value:  user.Mention(),
+						Inline: true,
+					},
+				},
+			}
+		}
 	}
 
 	return &discordgo.MessageEmbed{
