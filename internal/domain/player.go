@@ -15,11 +15,12 @@ const (
 )
 
 type Player struct {
-	GuildID       string
-	VoiceChannel  *discordgo.Channel
-	StatusChannel *discordgo.Channel
-	Conn          *discordgo.VoiceConnection
-	Status        PlayerStatus
+	GuildID             string
+	VoiceChannel        *discordgo.Channel
+	StatusChannel       *discordgo.Channel
+	Conn                *discordgo.VoiceConnection
+	Status              PlayerStatus
+	LastStatusMessageID string
 
 	CurrentStartTime time.Time
 }

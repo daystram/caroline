@@ -306,10 +306,22 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 			stop := make(chan bool, 1)
 			next := make(chan bool, 1)
 			go func() {
-				_, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, util.FormatNowPlaying(music, user, sp.CurrentStartTime))
+				sc, err := s.Channel(sp.StatusChannel.ID)
 				if err != nil {
 					wlog(err)
 				}
+
+				var msg *discordgo.Message
+				emb := util.FormatNowPlaying(music, user, sp.CurrentStartTime)
+				if sc != nil && sc.LastMessageID == sp.LastStatusMessageID {
+					msg, err = s.ChannelMessageEditEmbed(sp.StatusChannel.ID, sp.LastStatusMessageID, emb)
+				} else {
+					msg, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, emb)
+				}
+				if err != nil {
+					wlog(err)
+				}
+				sp.LastStatusMessageID = msg.ID
 
 				if sp.Conn != nil && sp.Conn.Ready {
 					dgvoice.PlayAudioFile(sp.Conn, surl, stop)
