@@ -355,7 +355,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 				case <-next:
 					stop <- true
 					break wait
-				case <-time.After(music.Duration + 5*time.Second):
+				case <-time.After(music.Duration + 15*time.Second):
 					stop <- true
 					wlog("timeout: playtime exceeded")
 					break wait
