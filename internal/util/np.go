@@ -33,6 +33,14 @@ func FormatNowPlaying(music *domain.Music, user *discordgo.User, start time.Time
 		}
 	}
 
+	var duration string
+	playtime := time.Since(start)
+	if playtime < time.Second {
+		duration = fmt.Sprintf("`%s`", music.Duration.String())
+	} else {
+		duration = fmt.Sprintf("`%s/%s`", playtime.String(), music.Duration.String())
+	}
+
 	return &discordgo.MessageEmbed{
 		Title:       "Now Playing",
 		Description: music.Title,
@@ -50,7 +58,7 @@ func FormatNowPlaying(music *domain.Music, user *discordgo.User, start time.Time
 			},
 			{
 				Name:   "Duration",
-				Value:  fmt.Sprintf("`%s/%s`", time.Since(start).String(), music.Duration.String()),
+				Value:  duration,
 				Inline: true,
 			},
 			{
@@ -66,5 +74,6 @@ func FormatNowPlaying(music *domain.Music, user *discordgo.User, start time.Time
 		Thumbnail: &discordgo.MessageEmbedThumbnail{
 			URL: music.Thumbnail,
 		},
+		Timestamp: start.Format(time.RFC3339),
 	}
 }
