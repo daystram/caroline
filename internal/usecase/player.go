@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bwmarrin/dgvoice"
 	"github.com/bwmarrin/discordgo"
+	"github.com/daystram/dgvoice"
 
 	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"

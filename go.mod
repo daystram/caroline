@@ -3,8 +3,8 @@ module github.com/daystram/caroline
 go 1.17
 
 require (
-	github.com/bwmarrin/dgvoice v0.0.0-20210225172318-caaac756e02e
 	github.com/bwmarrin/discordgo v0.24.0
+	github.com/daystram/dgvoice v0.0.0-20220308170814-a0065fb4d714
 	github.com/kkdai/youtube/v2 v2.7.10
 	github.com/zmb3/spotify/v2 v2.0.1
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
