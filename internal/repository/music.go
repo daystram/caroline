@@ -130,7 +130,7 @@ func (r *musicRepository) GetStreamURL(music *domain.Music) (string, error) {
 		return "", err
 	}
 
-	f := v.Formats.Type("audio")
+	f := v.Formats.Type("audio/webm")
 	if len(f) == 0 {
 		return "", domain.ErrMusicNotFound
 	}

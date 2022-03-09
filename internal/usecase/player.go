@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bwmarrin/dgvoice"
 	"github.com/bwmarrin/discordgo"
+	"github.com/daystram/dgvoice"
 
 	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
@@ -355,7 +355,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 				case <-next:
 					stop <- true
 					break wait
-				case <-time.After(music.Duration + 5*time.Second):
+				case <-time.After(music.Duration + 15*time.Second):
 					stop <- true
 					wlog("timeout: playtime exceeded")
 					break wait
