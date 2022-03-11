@@ -87,10 +87,8 @@ func (r *musicRepository) Load(m *domain.Music) error {
 	var err error
 	var resp *YouTubeDLResponse
 	if videoID == "" {
-		log.Println("search")
 		resp, err = execYouTubeDL(fmt.Sprintf("ytsearch1:'%s'", m.Query))
 	} else {
-		log.Println("direct")
 		resp, err = execYouTubeDL(videoID)
 	}
 	if err != nil {
