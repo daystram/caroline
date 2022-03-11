@@ -94,7 +94,7 @@ func (r *musicRepository) Load(m *domain.Music) error {
 	if err != nil {
 		return err
 	}
-	if resp.ID == "" {
+	if resp == nil || resp.ID == "" {
 		return domain.ErrMusicNotFound
 	}
 
@@ -170,10 +170,10 @@ func execYouTubeDL(arg ...string) (*YouTubeDLResponse, error) {
 
 	for i := 0; i < youtubeDLRetries; i++ {
 		resp, err := exec(arg...)
-		if err != nil {
+		if err == nil {
 			return resp, nil
 		}
-		log.Printf("youtube-dl: attempt #%d: %s", i, err.Error())
+		log.Printf("youtube-dl: attempt #%d: %s", i, err)
 	}
 
 	return nil, domain.ErrMusicNotFound
