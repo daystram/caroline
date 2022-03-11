@@ -1,11 +1,15 @@
 package repository
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
+	"sort"
+	"time"
 
-	yt "github.com/kkdai/youtube/v2"
 	"github.com/zmb3/spotify/v2"
 	spotifyauth "github.com/zmb3/spotify/v2/auth"
 	"golang.org/x/oauth2/clientcredentials"
@@ -38,18 +42,16 @@ func NewMusicRepository(ytAPIKey, spClientID, spClientSecret string) (domain.Mus
 	spAPI := spotify.New(config.Client(spCtx))
 
 	return &musicRepository{
-		ytAPI:    ytAPI,
-		ytCtx:    ytCtx,
-		ytClient: yt.Client{},
-		spAPI:    spAPI,
-		spCtx:    spCtx,
+		ytAPI: ytAPI,
+		ytCtx: ytCtx,
+		spAPI: spAPI,
+		spCtx: spCtx,
 	}, nil
 }
 
 type musicRepository struct {
-	ytAPI    *youtube.Service
-	ytCtx    context.Context
-	ytClient yt.Client
+	ytAPI *youtube.Service
+	ytCtx context.Context
 
 	spAPI *spotify.Client
 	spCtx context.Context
@@ -125,21 +127,66 @@ func (r *musicRepository) Load(m *domain.Music) error {
 }
 
 func (r *musicRepository) GetStreamURL(music *domain.Music) (string, error) {
-	v, err := r.ytClient.GetVideo(music.URL)
+	v, err := GetYouTubeDL(music.URL)
 	if err != nil {
 		return "", err
 	}
 
-	f := v.Formats.Type("audio/webm")
+	f := filterFormats(v.Formats, "webm", "opus")
 	if len(f) == 0 {
 		return "", domain.ErrMusicNotFound
 	}
-	f.Sort()
+	sortFormats(f)
 
-	surl, err := r.ytClient.GetStreamURL(v, &f[0])
+	return v.Formats[0].URL, nil
+}
+
+type YouTubeDLResponse struct {
+	Formats []YouTubeDLFormat `json:"formats"`
+}
+
+type YouTubeDLFormat struct {
+	URL        string  `json:"url"`
+	Ext        string  `json:"ext"`
+	AudioCodec string  `json:"acodec"`
+	AvgBitrate float32 `json:"abr"`
+}
+
+func GetYouTubeDL(url string) (*YouTubeDLResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "youtube-dl", "--dump-json", url)
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+
+	err := cmd.Run()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return surl, nil
+	v := YouTubeDLResponse{}
+	err = json.Unmarshal(out.Bytes(), &v)
+	if err != nil {
+		return nil, err
+	}
+
+	return &v, nil
+}
+
+func filterFormats(formats []YouTubeDLFormat, ext, acodec string) []YouTubeDLFormat {
+	result := make([]YouTubeDLFormat, 0)
+	for _, f := range formats {
+		if f.Ext == ext && f.AudioCodec == acodec {
+			result = append(result, f)
+		}
+	}
+
+	return result
+}
+
+func sortFormats(formats []YouTubeDLFormat) {
+	sort.SliceStable(formats, func(i, j int) bool {
+		return formats[i].AvgBitrate > formats[j].AvgBitrate
+	})
 }
