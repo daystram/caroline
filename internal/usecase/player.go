@@ -316,6 +316,9 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 				if sc != nil && sc.LastMessageID == sp.LastStatusMessageID {
 					msg, err = s.ChannelMessageEditEmbed(sp.StatusChannel.ID, sp.LastStatusMessageID, emb)
 				} else {
+					if sp.LastStatusMessageID != "" {
+						_ = s.ChannelMessageDelete(sp.StatusChannel.ID, sp.LastStatusMessageID)
+					}
 					msg, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, emb)
 				}
 				if err != nil {
