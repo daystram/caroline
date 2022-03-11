@@ -240,7 +240,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 	wlog := util.NewPlayerWorkerLogger(sp.GuildID)
 	wlog("starting worker")
 
-	conn, err := s.ChannelVoiceJoin(vch.GuildID, vch.ID, false, false)
+	conn, err := s.ChannelVoiceJoin(vch.GuildID, vch.ID, false, true)
 	if err != nil {
 		wlog(err)
 		return err
