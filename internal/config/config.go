@@ -10,7 +10,6 @@ type Config struct {
 
 	SpotifyClientID     string
 	SpotifyClientSecret string
-	YouTubeAPIKey       string
 
 	DebugGuildID string
 }
@@ -29,10 +28,6 @@ func Load() (*Config, error) {
 
 	if c.SpotifyClientSecret, found = os.LookupEnv("SP_CLIENT_SECRET"); !found {
 		return nil, errors.New("SP_CLIENT_SECRET not specified")
-	}
-
-	if c.YouTubeAPIKey, found = os.LookupEnv("YT_API_KEY"); !found {
-		return nil, errors.New("YT_API_KEY not specified")
 	}
 
 	c.DebugGuildID, _ = os.LookupEnv("DEBUG_GUILD_ID")

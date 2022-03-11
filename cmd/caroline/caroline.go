@@ -38,7 +38,7 @@ func Main(args []string) error {
 		log.Println("init: development mode: guildID:", cfg.DebugGuildID)
 	}
 
-	musicRepo, err := repository.NewMusicRepository(cfg.YouTubeAPIKey, cfg.SpotifyClientID, cfg.SpotifyClientSecret)
+	musicRepo, err := repository.NewMusicRepository(cfg.SpotifyClientID, cfg.SpotifyClientSecret)
 	if err != nil {
 		return err
 	}
