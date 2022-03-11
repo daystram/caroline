@@ -148,25 +148,37 @@ type YouTubeDLThumbnail struct {
 }
 
 func execYouTubeDL(arg ...string) (*YouTubeDLResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "youtube-dl", append(arg, "--dump-json")...)
+	exec := func(arg ...string) (*YouTubeDLResponse, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "youtube-dl", append(arg, "--dump-json")...)
 
-	var out bytes.Buffer
-	cmd.Stdout = &out
+		var out bytes.Buffer
+		cmd.Stdout = &out
 
-	err := cmd.Run()
-	if err != nil {
-		return nil, fmt.Errorf("youtube-dl: %w", err)
+		err := cmd.Run()
+		if err != nil {
+			return nil, fmt.Errorf("youtube-dl: %w", err)
+		}
+
+		resp := YouTubeDLResponse{}
+		err = json.Unmarshal(out.Bytes(), &resp)
+		if err != nil {
+			return nil, fmt.Errorf("youtube-dl: %w", err)
+		}
+
+		return &resp, nil
 	}
 
-	resp := YouTubeDLResponse{}
-	err = json.Unmarshal(out.Bytes(), &resp)
-	if err != nil {
-		return nil, fmt.Errorf("youtube-dl: %w", err)
+	for i := 0; i < youtubeDLRetries; i++ {
+		resp, err := exec(arg...)
+		if err != nil {
+			return resp, nil
+		}
+		log.Printf("youtube-dl: attempt #%d: %s", i, err.Error())
 	}
 
-	return &resp, nil
+	return nil, domain.ErrMusicNotFound
 }
 
 func filterFormats(formats []YouTubeDLFormat, ext, acodec string) []YouTubeDLFormat {
