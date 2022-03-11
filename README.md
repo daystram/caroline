@@ -26,6 +26,7 @@ To function properly, the following tools and library must be installed:
 
 - [ffmpeg](https://ffmpeg.org/)
 - [Opus](https://opus-codec.org/) development library
+- [youtube-dl](https://github.com/ytdl-org/youtube-dl)
 
 ## Usage
 
