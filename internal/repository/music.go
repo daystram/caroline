@@ -133,10 +133,10 @@ type YouTubeDLResponse struct {
 }
 
 type YouTubeDLFormat struct {
-	URL        string  `json:"url"`
-	Ext        string  `json:"ext"`
-	AudioCodec string  `json:"acodec"`
-	AvgBitrate float32 `json:"abr"`
+	URL          string  `json:"url"`
+	Ext          string  `json:"ext"`
+	AudioCodec   string  `json:"acodec"`
+	AudioBitrate float32 `json:"abr"`
 }
 
 type YouTubeDLThumbnail struct {
@@ -192,6 +192,6 @@ func filterFormats(formats []YouTubeDLFormat, ext, acodec string) []YouTubeDLFor
 
 func sortFormats(formats []YouTubeDLFormat) {
 	sort.SliceStable(formats, func(i, j int) bool {
-		return formats[i].AvgBitrate > formats[j].AvgBitrate
+		return formats[i].AudioBitrate > formats[j].AudioBitrate
 	})
 }
