@@ -9,6 +9,7 @@ import (
 	"log"
 	"os/exec"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/zmb3/spotify/v2"
@@ -94,7 +95,7 @@ func (r *musicRepository) Load(m *domain.Music) error {
 	if err != nil {
 		return err
 	}
-	if resp.ID == "" {
+	if resp == nil || resp.ID == "" {
 		return domain.ErrMusicNotFound
 	}
 
@@ -133,10 +134,10 @@ type YouTubeDLResponse struct {
 }
 
 type YouTubeDLFormat struct {
-	URL        string  `json:"url"`
-	Ext        string  `json:"ext"`
-	AudioCodec string  `json:"acodec"`
-	AvgBitrate float32 `json:"abr"`
+	URL          string  `json:"url"`
+	Ext          string  `json:"ext"`
+	AudioCodec   string  `json:"acodec"`
+	AudioBitrate float32 `json:"abr"`
 }
 
 type YouTubeDLThumbnail struct {
@@ -149,34 +150,38 @@ func execYouTubeDL(arg ...string) (*YouTubeDLResponse, error) {
 	exec := func(arg ...string) (*YouTubeDLResponse, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		cmd := exec.CommandContext(ctx, "youtube-dl", append(arg, "--dump-json")...)
+		cmd := exec.CommandContext(ctx, "youtube-dl", append(arg, "--dump-json", "--force-ipv4")...)
 
-		var out bytes.Buffer
-		cmd.Stdout = &out
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
 
 		err := cmd.Run()
 		if err != nil {
-			return nil, fmt.Errorf("youtube-dl: %w", err)
+			return nil, fmt.Errorf("%w: %s", err, strings.ReplaceAll(stderr.String(), "\n", "\\n"))
 		}
 
 		resp := YouTubeDLResponse{}
-		err = json.Unmarshal(out.Bytes(), &resp)
+		err = json.Unmarshal(stdout.Bytes(), &resp)
 		if err != nil {
-			return nil, fmt.Errorf("youtube-dl: %w", err)
+			return nil, err
 		}
 
 		return &resp, nil
 	}
 
+	var err error
+	var resp *YouTubeDLResponse
 	for i := 0; i < youtubeDLRetries; i++ {
-		resp, err := exec(arg...)
-		if err != nil {
+		resp, err = exec(arg...)
+		if err == nil {
 			return resp, nil
 		}
-		log.Printf("youtube-dl: attempt #%d: %s", i, err.Error())
+		log.Printf("youtube-dl: attempt #%d: %s", i, err)
+		time.Sleep(500 * time.Millisecond)
 	}
 
-	return nil, domain.ErrMusicNotFound
+	return nil, fmt.Errorf("%w: %s", domain.ErrMusicNotFound, err)
 }
 
 func filterFormats(formats []YouTubeDLFormat, ext, acodec string) []YouTubeDLFormat {
@@ -192,6 +197,6 @@ func filterFormats(formats []YouTubeDLFormat, ext, acodec string) []YouTubeDLFor
 
 func sortFormats(formats []YouTubeDLFormat) {
 	sort.SliceStable(formats, func(i, j int) bool {
-		return formats[i].AvgBitrate > formats[j].AvgBitrate
+		return formats[i].AudioBitrate > formats[j].AudioBitrate
 	})
 }
