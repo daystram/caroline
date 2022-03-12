@@ -9,6 +9,7 @@ import (
 	"log"
 	"os/exec"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/zmb3/spotify/v2"
@@ -151,32 +152,36 @@ func execYouTubeDL(arg ...string) (*YouTubeDLResponse, error) {
 		defer cancel()
 		cmd := exec.CommandContext(ctx, "youtube-dl", append(arg, "--dump-json", "--force-ipv4")...)
 
-		var out bytes.Buffer
-		cmd.Stdout = &out
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
 
 		err := cmd.Run()
 		if err != nil {
-			return nil, fmt.Errorf("youtube-dl: %w", err)
+			return nil, fmt.Errorf("%w: %s", err, strings.ReplaceAll(stderr.String(), "\n", "\\n"))
 		}
 
 		resp := YouTubeDLResponse{}
-		err = json.Unmarshal(out.Bytes(), &resp)
+		err = json.Unmarshal(stdout.Bytes(), &resp)
 		if err != nil {
-			return nil, fmt.Errorf("youtube-dl: %w", err)
+			return nil, err
 		}
 
 		return &resp, nil
 	}
 
+	var err error
+	var resp *YouTubeDLResponse
 	for i := 0; i < youtubeDLRetries; i++ {
-		resp, err := exec(arg...)
+		resp, err = exec(arg...)
 		if err == nil {
 			return resp, nil
 		}
 		log.Printf("youtube-dl: attempt #%d: %s", i, err)
+		time.Sleep(500 * time.Millisecond)
 	}
 
-	return nil, domain.ErrMusicNotFound
+	return nil, fmt.Errorf("%w: %s", domain.ErrMusicNotFound, err)
 }
 
 func filterFormats(formats []YouTubeDLFormat, ext, acodec string) []YouTubeDLFormat {
