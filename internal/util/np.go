@@ -34,11 +34,11 @@ func FormatNowPlaying(music *domain.Music, user *discordgo.User, start time.Time
 	}
 
 	var duration string
-	playtime := time.Since(start)
+	playtime := time.Since(start).Round(time.Second)
 	if playtime < time.Second {
-		duration = fmt.Sprintf("`%s`", music.Duration.String())
+		duration = fmt.Sprintf("`%s`", music.Duration.Round(time.Second).String())
 	} else {
-		duration = fmt.Sprintf("`%s/%s`", playtime.String(), music.Duration.String())
+		duration = fmt.Sprintf("`%s / %s`", playtime.String(), music.Duration.Round(time.Second).String())
 	}
 
 	return &discordgo.MessageEmbed{
