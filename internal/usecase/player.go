@@ -53,8 +53,9 @@ func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) 
 	if !ok {
 		sp = &speaker{
 			Player: &domain.Player{
-				GuildID: vch.GuildID,
-				Status:  domain.PlayerStatusUninitialized,
+				GuildID:          vch.GuildID,
+				Status:           domain.PlayerStatusUninitialized,
+				CurrentStartTime: time.Now(),
 			},
 			action: make(chan domain.PlayerAction),
 		}

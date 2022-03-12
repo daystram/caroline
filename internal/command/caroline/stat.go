@@ -67,12 +67,12 @@ func statCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 							},
 							{
 								Name:   "Total Playtime",
-								Value:  srv.UC.Player.TotalPlaytime().String(),
+								Value:  fmt.Sprintf("`%s`", srv.UC.Player.TotalPlaytime().Round(time.Second).String()),
 								Inline: true,
 							},
 							{
 								Name:   "Uptime",
-								Value:  time.Since(srv.StartTime).String(),
+								Value:  fmt.Sprintf("`%s`", time.Since(srv.StartTime).Round(time.Second).String()),
 								Inline: true,
 							},
 						},
