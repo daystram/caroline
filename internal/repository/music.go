@@ -149,7 +149,7 @@ func execYouTubeDL(arg ...string) (*YouTubeDLResponse, error) {
 	exec := func(arg ...string) (*YouTubeDLResponse, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		cmd := exec.CommandContext(ctx, "youtube-dl", append(arg, "--dump-json")...)
+		cmd := exec.CommandContext(ctx, "youtube-dl", append(arg, "--dump-json", "--force-ipv4")...)
 
 		var out bytes.Buffer
 		cmd.Stdout = &out
