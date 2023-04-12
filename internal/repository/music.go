@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	youtubeDLRetries  = 3
+	youtubeDLPBinary  = "yt-dlp"
+	youtubeDLPRetries = 3
 	youtubeURLPattern = "https://youtu.be/"
 )
 
@@ -88,9 +89,9 @@ func (r *musicRepository) Load(m *domain.Music) error {
 	var err error
 	var resp *YouTubeDLResponse
 	if videoID == "" {
-		resp, err = execYouTubeDL(fmt.Sprintf("ytsearch1:'%s'", m.Query))
+		resp, err = execYouTubeDLP(fmt.Sprintf("ytsearch1:'%s'", m.Query))
 	} else {
-		resp, err = execYouTubeDL(videoID)
+		resp, err = execYouTubeDLP(videoID)
 	}
 	if err != nil {
 		return err
@@ -111,7 +112,7 @@ func (r *musicRepository) Load(m *domain.Music) error {
 }
 
 func (r *musicRepository) GetStreamURL(music *domain.Music) (string, error) {
-	resp, err := execYouTubeDL(music.URL)
+	resp, err := execYouTubeDLP(music.URL)
 	if err != nil {
 		return "", err
 	}
@@ -146,11 +147,13 @@ type YouTubeDLThumbnail struct {
 	Width  int    `json:"width"`
 }
 
-func execYouTubeDL(arg ...string) (*YouTubeDLResponse, error) {
-	exec := func(arg ...string) (*YouTubeDLResponse, error) {
+func execYouTubeDLP(arg ...string) (*YouTubeDLResponse, error) {
+	// TODO: proper retry/backoff
+	exec := func() (*YouTubeDLResponse, error) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		cmd := exec.CommandContext(ctx, "youtube-dl", append(arg, "--dump-json", "--force-ipv4")...)
+		cmd := exec.CommandContext(ctx, youtubeDLPBinary, append(arg, "--dump-json", "--force-ipv4")...)
+		log.Printf("%s: exec: \"%s\"\n", youtubeDLPBinary, cmd.String())
 
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
@@ -172,12 +175,12 @@ func execYouTubeDL(arg ...string) (*YouTubeDLResponse, error) {
 
 	var err error
 	var resp *YouTubeDLResponse
-	for i := 0; i < youtubeDLRetries; i++ {
-		resp, err = exec(arg...)
+	for i := 0; i < youtubeDLPRetries; i++ {
+		resp, err = exec()
 		if err == nil {
 			return resp, nil
 		}
-		log.Printf("youtube-dl: attempt #%d: %s", i, err)
+		log.Printf("%s: attempt %d failed: %s\n", youtubeDLPBinary, i, err)
 		time.Sleep(500 * time.Millisecond)
 	}
 
