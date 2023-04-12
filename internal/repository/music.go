@@ -123,7 +123,7 @@ func (r *musicRepository) GetStreamURL(music *domain.Music) (string, error) {
 	}
 	sortFormats(f)
 
-	return resp.Formats[0].URL, nil
+	return f[0].URL, nil
 }
 
 type YouTubeDLResponse struct {
