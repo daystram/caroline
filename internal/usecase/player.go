@@ -328,6 +328,7 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 				sp.LastStatusMessageID = msg.ID
 
 				if sp.Conn != nil && sp.Conn.Ready {
+					wlog(fmt.Sprintf("play: stream url: %s", surl))
 					dgvoice.PlayAudioFile(sp.Conn, surl, stop)
 				} else {
 					wlog("stop: conn is not ready")

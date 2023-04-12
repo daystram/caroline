@@ -26,7 +26,7 @@ To function properly, the following tools and library must be installed:
 
 - [ffmpeg](https://ffmpeg.org/)
 - [Opus](https://opus-codec.org/) development library
-- [youtube-dl](https://github.com/ytdl-org/youtube-dl)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 
 ## Usage
 
@@ -53,7 +53,6 @@ The bot could be configured by setting the following environment variables.
 | `BOT_TOKEN`        | Discord Bot token      | `""`    | ✅       |
 | `SP_CLIENT_ID`     | Spotify client ID      | `""`    | ✅       |
 | `SP_CLIENT_SECRET` | Spotify client secret  | `""`    | ✅       |
-| `YT_API_KEY`       | YouTube API key        | `""`    | ✅       |
 | `DEBUG_GUILD_ID`   | Discord debug Guild ID | `""`    | ⬜       |
 
 ## License
