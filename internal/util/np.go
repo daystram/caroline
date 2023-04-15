@@ -10,50 +10,83 @@ import (
 	"github.com/daystram/caroline/internal/domain"
 )
 
-func FormatNowPlaying(music *domain.Music, user *discordgo.User, start time.Time) *discordgo.MessageEmbed {
-	if !music.Loaded {
-		if !music.Loaded {
-			return &discordgo.MessageEmbed{
-				Title:       "About to Play",
-				Description: fmt.Sprintf(music.Query),
-				Color:       common.ColorPlay,
-				Fields: []*discordgo.MessageEmbedField{
-					{
-						Name:   "Origin",
-						Value:  music.Source.String(),
-						Inline: true,
-					},
-					{
-						Name:   "Queued By",
-						Value:  user.Mention(),
-						Inline: true,
-					},
-				},
-			}
+func BuildNPEmbed(s *discordgo.Session, p *domain.Player, q *domain.Queue) (*discordgo.MessageEmbed, error) {
+	music := q.NowPlaying()
+	if music == nil {
+		return &discordgo.MessageEmbed{
+			Color:       common.ColorPlayerStopped,
+			Title:       "Stopped",
+			Description: "_Queue is empty_",
+		}, nil
+	}
+	user, err := s.User(music.QueuedByID)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		color       int
+		title       string
+		description string
+		source      string
+		duration    string
+		position    string
+		author      *discordgo.MessageEmbedAuthor
+		thumbnail   *discordgo.MessageEmbedThumbnail
+		startTime   time.Time
+	)
+
+	position = fmt.Sprintf("%d of %d", q.CurrentPos+1, len(q.Tracks))
+	author = &discordgo.MessageEmbedAuthor{
+		Name:    user.Username,
+		IconURL: discordgo.EndpointUserAvatar(user.ID, user.Avatar),
+	}
+	origin := music.Source.String()
+	if startTime = p.CurrentStartTime; startTime.IsZero() {
+		startTime = time.Now()
+	}
+
+	switch {
+	case !music.Loaded:
+		if p.Status == domain.PlayerStatusPlaying {
+			color = common.ColorPlayerLoading
+			title = "Now Loading"
+			duration = "_Loading_"
+		} else {
+			color = common.ColorPlayerStopped
+			title = "Stopped"
+			duration = "_Pending_"
+		}
+		source = fmt.Sprintf("`%s`", music.Query)
+	case music.Loaded:
+		if p.Status == domain.PlayerStatusPlaying {
+			color = common.ColorPlayerPlaying
+			title = "Now Playing"
+		} else {
+			color = common.ColorPlayerStopped
+			title = "Stopped"
+		}
+		description = music.Title
+		source = music.URL
+		duration = music.Duration.Round(time.Second).String()
+		thumbnail = &discordgo.MessageEmbedThumbnail{
+			URL: music.Thumbnail,
 		}
 	}
 
-	var duration string
-	playtime := time.Since(start).Round(time.Second)
-	if playtime < time.Second {
-		duration = fmt.Sprintf("`%s`", music.Duration.Round(time.Second).String())
-	} else {
-		duration = fmt.Sprintf("`%s / %s`", playtime.String(), music.Duration.Round(time.Second).String())
-	}
-
 	return &discordgo.MessageEmbed{
-		Title:       "Now Playing",
-		Description: music.Title,
-		Color:       common.ColorNowPlaying,
+		Color:       color,
+		Title:       title,
+		Description: description,
 		Fields: []*discordgo.MessageEmbedField{
 			{
 				Name:   "Source",
-				Value:  music.URL,
+				Value:  source,
 				Inline: false,
 			},
 			{
 				Name:   "Origin",
-				Value:  music.Source.String(),
+				Value:  origin,
 				Inline: true,
 			},
 			{
@@ -62,18 +95,72 @@ func FormatNowPlaying(music *domain.Music, user *discordgo.User, start time.Time
 				Inline: true,
 			},
 			{
-				Name:   "Queued By",
-				Value:  user.Mention(),
+				Name:   "Position",
+				Value:  position,
 				Inline: true,
 			},
 		},
-		Author: &discordgo.MessageEmbedAuthor{
-			Name:    user.Username,
-			IconURL: discordgo.EndpointUserAvatar(user.ID, user.Avatar),
+		Author:    author,
+		Thumbnail: thumbnail,
+		Timestamp: startTime.Format(time.RFC3339),
+	}, nil
+}
+
+func BuildNPComponent(p *domain.Player, q *domain.Queue) discordgo.MessageComponent {
+	prevBtn := discordgo.Button{
+		Emoji: discordgo.ComponentEmoji{Name: "⏮"},
+		Label: "Previous",
+		Style: discordgo.SecondaryButton,
+		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty() ||
+			(q.CurrentPos == 0 && q.Loop != domain.LoopModeAll),
+		CustomID: common.NPComponentPreviousID,
+	}
+
+	togglePlayBtn := discordgo.Button{
+		Style:    discordgo.SecondaryButton,
+		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty(),
+		CustomID: common.NPComponentTogglePlayID,
+	}
+	switch p.Status {
+	case domain.PlayerStatusStopped, domain.PlayerStatusUninitialized:
+		togglePlayBtn.Emoji = discordgo.ComponentEmoji{Name: "▶️"}
+		togglePlayBtn.Label = "Play"
+	case domain.PlayerStatusPlaying:
+		togglePlayBtn.Emoji = discordgo.ComponentEmoji{Name: "⏹"}
+		togglePlayBtn.Label = "Stop"
+	}
+
+	nextBtn := discordgo.Button{
+		Emoji: discordgo.ComponentEmoji{Name: "⏭"},
+		Label: "Next",
+		Style: discordgo.SecondaryButton,
+		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty() ||
+			(q.CurrentPos == len(q.Tracks)-1 && q.Loop != domain.LoopModeAll),
+		CustomID: common.NPComponentNextID,
+	}
+
+	toggleLoop := discordgo.Button{
+		Style:    discordgo.SecondaryButton,
+		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty(),
+		CustomID: common.NPComponentToggleLoopID,
+	}
+	switch q.Loop {
+	case domain.LoopModeOff:
+		toggleLoop.Label = "Repeat off"
+	case domain.LoopModeOne:
+		toggleLoop.Emoji = discordgo.ComponentEmoji{Name: "🔂"}
+		toggleLoop.Label = "Repeat one"
+	case domain.LoopModeAll:
+		toggleLoop.Emoji = discordgo.ComponentEmoji{Name: "🔁"}
+		toggleLoop.Label = "Repeat all"
+	}
+
+	return discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			prevBtn,
+			togglePlayBtn,
+			nextBtn,
+			toggleLoop,
 		},
-		Thumbnail: &discordgo.MessageEmbedThumbnail{
-			URL: music.Thumbnail,
-		},
-		Timestamp: start.Format(time.RFC3339),
 	}
 }

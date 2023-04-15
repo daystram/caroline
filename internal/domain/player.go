@@ -15,12 +15,12 @@ const (
 )
 
 type Player struct {
-	GuildID             string
-	VoiceChannel        *discordgo.Channel
-	StatusChannel       *discordgo.Channel
-	Conn                *discordgo.VoiceConnection
-	Status              PlayerStatus
-	LastStatusMessageID string
+	GuildID         string
+	VoiceChannel    *discordgo.Channel
+	NPChannel       *discordgo.Channel
+	Conn            *discordgo.VoiceConnection
+	Status          PlayerStatus
+	LastNPMessageID string
 
 	CurrentStartTime time.Time
 }
@@ -35,15 +35,13 @@ const (
 )
 
 type PlayerUseCase interface {
-	Play(s *discordgo.Session, vch, sch *discordgo.Channel) error
+	Create(s *discordgo.Session, vch, sch *discordgo.Channel, q *Queue) (*Player, error)
 	Get(guildID string) (*Player, error)
+	Play(p *Player) error
+	Skip(p *Player) error
 	Stop(p *Player) error
-	Jump(p *Player, pos int) error
-	Move(p *Player, from, to int) error
-	Remove(p *Player, pos int) error
-	Reset(p *Player) error
-	Kick(p *Player) error
-	KickAll()
+	UpdateNPMessage(s *discordgo.Session, p *Player, q *Queue, keepLast bool) error
+	Kick(s *discordgo.Session, p *Player, q *Queue) error
 	Count() int
 	TotalPlaytime() time.Duration
 }

@@ -1,32 +1,28 @@
 package command
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/daystram/caroline/internal/command/caroline"
 	"github.com/daystram/caroline/internal/server"
+	"github.com/daystram/caroline/internal/util"
 )
 
 type RegisterFunc func(*server.Server, map[string]func(*discordgo.Session, *discordgo.InteractionCreate)) error
 
 func commands() []RegisterFunc {
 	return []RegisterFunc{
-		caroline.RegisterBye,
-		caroline.RegisterContinue,
-		caroline.RegisterJump,
-		caroline.RegisterLoop,
-		caroline.RegisterMove,
-		caroline.RegisterNP,
+		caroline.RegisterNPComponent,
 		caroline.RegisterPlay,
+		caroline.RegisterJump,
+		caroline.RegisterMove,
 		caroline.RegisterRemove,
 		caroline.RegisterReset,
+		caroline.RegisterBye,
 		caroline.RegisterQueue,
-		caroline.RegisterSkip,
 		caroline.RegisterStat,
-		caroline.RegisterStop,
 	}
 }
 
@@ -41,14 +37,14 @@ func RegisterAll(srv *server.Server) error {
 	}
 
 	srv.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		h, ok := interactionHandlers[i.ApplicationCommandData().Name]
-		if ok {
-			h(s, i)
+		interaction := util.InteractionName(i)
+		h, ok := interactionHandlers[interaction]
+		if !ok {
+			log.Printf("[@%s#%s] %s: unknown interaction: %s", i.Member.User.Username, i.Member.User.Discriminator, i.Type, interaction)
+			return
 		}
-	})
-
-	srv.Session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		log.Println(fmt.Sprintf("command: %s:", i.ApplicationCommandData().Name), i.Member.User.Username)
+		log.Printf("[@%s#%s] %s: %s", i.Member.User.Username, i.Member.User.Discriminator, i.Type, interaction)
+		h(s, i)
 	})
 
 	return nil

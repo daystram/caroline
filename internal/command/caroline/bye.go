@@ -36,30 +36,36 @@ func byeCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interact
 			return
 		}
 		if err != nil {
-			log.Println("command: bye:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
-		// get player
+		// get player and queue
 		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
-			log.Println("command: bye:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+		q, err := srv.UC.Queue.Get(i.GuildID)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
-		if !util.IsPlayerReady(p) {
-			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
-			return
-		}
 		if !util.IsSameVC(p, vs) {
 			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseDifferentVC)
 			return
 		}
 
-		// kick player
-		err = srv.UC.Player.Kick(p)
+		// kick player and clear queue
+		err = srv.UC.Player.Kick(s, p, q)
 		if err != nil {
-			log.Println("command: bye:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+		err = srv.UC.Queue.Clear(q)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
@@ -75,7 +81,7 @@ func byeCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interact
 			},
 		})
 		if err != nil {
-			log.Println("command: bye:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 		}
 	}
 }

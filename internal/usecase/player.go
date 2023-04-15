@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -45,7 +46,26 @@ type speaker struct {
 	action   chan domain.PlayerAction
 }
 
-func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) error {
+func (sp *speaker) Initialize(s *discordgo.Session) error {
+	conn, err := s.ChannelVoiceJoin(sp.VoiceChannel.GuildID, sp.VoiceChannel.ID, false, true)
+	if err != nil {
+		return err
+	}
+	sp.Conn = conn
+	sp.Status = domain.PlayerStatusStopped
+	sp.LastNPMessageID = ""
+	sp.CurrentStartTime = time.Time{}
+	return nil
+}
+
+func (sp *speaker) Uninitialize() error {
+	_ = sp.Conn.Disconnect()
+	sp.Conn = nil
+	sp.Status = domain.PlayerStatusUninitialized
+	return nil
+}
+
+func (u *playerUseCase) Create(s *discordgo.Session, vch, npch *discordgo.Channel, q *domain.Queue) (*domain.Player, error) {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 
@@ -53,31 +73,29 @@ func (u *playerUseCase) Play(s *discordgo.Session, vch, sch *discordgo.Channel) 
 	if !ok {
 		sp = &speaker{
 			Player: &domain.Player{
-				GuildID:          vch.GuildID,
-				Status:           domain.PlayerStatusUninitialized,
-				CurrentStartTime: time.Now(),
+				GuildID:      vch.GuildID,
+				VoiceChannel: vch,
+				NPChannel:    npch,
+				Status:       domain.PlayerStatusUninitialized,
 			},
 			action: make(chan domain.PlayerAction),
 		}
 		u.speakers[vch.GuildID] = sp
 	}
 	if sp.Status == domain.PlayerStatusUninitialized {
+		err := sp.Initialize(s)
+		if err != nil {
+			return nil, err
+		}
 		go func() {
-			err := u.StartWorker(s, sp, vch, sch)
+			err := u.startSpeakerWorker(s, sp, q)
 			if err != nil {
-				log.Println("player:", err)
+				log.Println(err)
 			}
 		}()
-	} else { // avoid racing
-		if sp.VoiceChannel.ID != vch.ID {
-			return domain.ErrInOtherChannel
-		}
 	}
 
-	if sp.Status != domain.PlayerStatusPlaying {
-		sp.action <- domain.PlayerActionPlay
-	}
-	return nil
+	return sp.Player, nil
 }
 
 func (u *playerUseCase) Get(guildID string) (*domain.Player, error) {
@@ -92,6 +110,37 @@ func (u *playerUseCase) Get(guildID string) (*domain.Player, error) {
 	return sp.Player, nil
 }
 
+func (u *playerUseCase) Play(p *domain.Player) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+
+	sp, ok := u.speakers[p.GuildID]
+	if !ok || sp.Status == domain.PlayerStatusUninitialized {
+		return domain.ErrNotPlaying
+	}
+
+	if sp.Status != domain.PlayerStatusPlaying {
+		sp.action <- domain.PlayerActionPlay
+	}
+	return nil
+}
+
+func (u *playerUseCase) Skip(p *domain.Player) error {
+	u.lock.Lock()
+	defer u.lock.Unlock()
+	if p == nil {
+		return domain.ErrNotPlaying
+	}
+
+	sp, ok := u.speakers[p.GuildID]
+	if !ok || sp.Status == domain.PlayerStatusUninitialized {
+		return domain.ErrNotPlaying
+	}
+
+	sp.action <- domain.PlayerActionSkip
+	return nil
+}
+
 func (u *playerUseCase) Stop(p *domain.Player) error {
 	u.lock.Lock()
 	defer u.lock.Unlock()
@@ -104,103 +153,18 @@ func (u *playerUseCase) Stop(p *domain.Player) error {
 		return domain.ErrNotPlaying
 	}
 
+	sp.CurrentStartTime = time.Time{}
+	sp.Status = domain.PlayerStatusStopped
 	sp.action <- domain.PlayerActionStop
 	return nil
 }
 
-func (u *playerUseCase) Jump(p *domain.Player, pos int) error {
+func (u *playerUseCase) Kick(s *discordgo.Session, p *domain.Player, q *domain.Queue) error {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 	if p == nil {
 		return domain.ErrNotPlaying
 	}
-
-	sp, ok := u.speakers[p.GuildID]
-	if !ok || sp.Status == domain.PlayerStatusUninitialized {
-		return domain.ErrNotPlaying
-	}
-
-	err := u.queueRepo.JumpPos(p.GuildID, pos-1) // compensate for queueRepo.Pop() call after skipping
-	if err != nil {
-		return err
-	}
-
-	sp.action <- domain.PlayerActionSkip
-	return nil
-}
-
-func (u *playerUseCase) Move(p *domain.Player, from, to int) error {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-	if p == nil {
-		return domain.ErrNotPlaying
-	}
-
-	sp, ok := u.speakers[p.GuildID]
-	if !ok || sp.Status == domain.PlayerStatusUninitialized {
-		return domain.ErrNotPlaying
-	}
-
-	err := u.queueRepo.Move(p.GuildID, from, to)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (u *playerUseCase) Remove(p *domain.Player, pos int) error {
-	u.lock.Lock()
-	defer u.lock.Unlock()
-	if p == nil {
-		return domain.ErrNotPlaying
-	}
-
-	sp, ok := u.speakers[p.GuildID]
-	if !ok || sp.Status == domain.PlayerStatusUninitialized {
-		return domain.ErrNotPlaying
-	}
-
-	err := u.queueRepo.Remove(p.GuildID, pos)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (u *playerUseCase) Reset(p *domain.Player) error {
-	if p == nil {
-		return domain.ErrNotPlaying
-	}
-
-	err := u.Stop(p)
-	if err != nil {
-		return err
-	}
-
-	err = u.queueRepo.Clear(p.GuildID)
-	if err != nil {
-		return err
-	}
-
-	p.CurrentStartTime = time.Time{}
-
-	return nil
-}
-
-func (u *playerUseCase) Kick(p *domain.Player) error {
-	if p == nil {
-		return domain.ErrNotPlaying
-	}
-
-	err := u.Reset(p)
-	if err != nil {
-		return err
-	}
-
-	u.lock.Lock()
-	defer u.lock.Unlock()
 
 	sp, ok := u.speakers[p.GuildID]
 	if !ok {
@@ -208,14 +172,10 @@ func (u *playerUseCase) Kick(p *domain.Player) error {
 	}
 	delete(u.speakers, p.GuildID)
 
+	_ = sp.Uninitialize()
+	_ = u.UpdateNPMessage(s, sp.Player, q, false)
 	sp.action <- domain.PlayerActionKick
 	return nil
-}
-
-func (u *playerUseCase) KickAll() {
-	for _, sp := range u.speakers {
-		_ = u.Kick(sp.Player)
-	}
 }
 
 func (u *playerUseCase) Count() int {
@@ -237,99 +197,68 @@ func (u *playerUseCase) TotalPlaytime() time.Duration {
 	return t
 }
 
-func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch *discordgo.Channel) error {
-	wlog := util.NewPlayerWorkerLogger(sp.GuildID)
-	wlog("starting worker")
-
-	conn, err := s.ChannelVoiceJoin(vch.GuildID, vch.ID, false, true)
-	if err != nil {
-		wlog(err)
-		return err
+func (u *playerUseCase) startSpeakerWorker(s *discordgo.Session, sp *speaker, q *domain.Queue) error {
+	if sp.Status == domain.PlayerStatusUninitialized {
+		return errors.New("player uninitialized")
 	}
-	sp.Conn = conn
-	sp.VoiceChannel = vch
-	sp.StatusChannel = sch
-	sp.Status = domain.PlayerStatusStopped
 
-	defer func() {
-		wlog("stopping worker")
-		_ = sp.Conn.Disconnect()
-		sp.Conn = nil
-		sp.VoiceChannel = nil
-		sp.StatusChannel = nil
-		sp.Status = domain.PlayerStatusUninitialized
-	}()
+	wlog := util.NewWorkerLogger(sp.GuildID, "SpeakerWorker")
+	wlog("starting worker")
 
 	for {
 	statusSwitch:
 		switch sp.Status {
 		case domain.PlayerStatusPlaying:
-			music, err := u.queueRepo.Pop(sp.GuildID)
-			if err != nil {
-				wlog(err)
+			music := q.NowPlaying()
+			if music == nil {
+				// end of queue
 				sp.Status = domain.PlayerStatusStopped
+				q.Proceed()
+				err := u.UpdateNPMessage(s, sp.Player, q, true)
+				if err != nil {
+					wlog("failed to update np message:", err)
+				}
 				break statusSwitch
 			}
-			if music == nil { // end of queue
-				sp.Status = domain.PlayerStatusStopped
-				break statusSwitch
+			err := u.UpdateNPMessage(s, sp.Player, q, true)
+			if err != nil {
+				wlog("failed to update np message:", err)
 			}
 			if !music.Loaded {
 				err := u.musicRepo.Load(music)
 				if err != nil {
-					_, _ = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
+					_, _ = s.ChannelMessageSendEmbed(sp.NPChannel.ID, &discordgo.MessageEmbed{
 						Title:       "Not Found",
 						Description: fmt.Sprintf("Could not find `%s`!", music.Query),
 						Color:       common.ColorError,
 					})
 					wlog(err)
+					q.Proceed()
 					break statusSwitch
+				}
+				err = u.UpdateNPMessage(s, sp.Player, q, true)
+				if err != nil {
+					wlog("failed to update np message:", err)
 				}
 			}
 
 			surl, err := u.musicRepo.GetStreamURL(music)
 			if err != nil {
-				_, _ = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, &discordgo.MessageEmbed{
+				_, _ = s.ChannelMessageSendEmbed(sp.NPChannel.ID, &discordgo.MessageEmbed{
 					Description: "Failed retrieving stream URL!",
 					Color:       common.ColorError,
 				})
 				wlog(err)
-				break statusSwitch
 			}
-
-			user, err := s.User(music.QueuedByID)
-			if err != nil {
-				wlog(err)
-				break statusSwitch
-			}
-			sp.CurrentStartTime = time.Now()
 
 			stop := make(chan bool, 1)
 			next := make(chan bool, 1)
 			go func() {
-				sc, err := s.Channel(sp.StatusChannel.ID)
-				if err != nil {
-					wlog(err)
-				}
-
-				var msg *discordgo.Message
-				emb := util.FormatNowPlaying(music, user, sp.CurrentStartTime)
-				if sc != nil && sc.LastMessageID == sp.LastStatusMessageID {
-					msg, err = s.ChannelMessageEditEmbed(sp.StatusChannel.ID, sp.LastStatusMessageID, emb)
-				} else {
-					if sp.LastStatusMessageID != "" {
-						_ = s.ChannelMessageDelete(sp.StatusChannel.ID, sp.LastStatusMessageID)
-					}
-					msg, err = s.ChannelMessageSendEmbed(sp.StatusChannel.ID, emb)
-				}
-				if err != nil {
-					wlog(err)
-				}
-				sp.LastStatusMessageID = msg.ID
-
 				if sp.Conn != nil && sp.Conn.Ready {
 					wlog(fmt.Sprintf("play: stream url: %s", surl))
+					sp.CurrentStartTime = time.Now()
 					dgvoice.PlayAudioFile(sp.Conn, surl, stop)
+					sp.CurrentStartTime = time.Time{}
 				} else {
 					wlog("stop: conn is not ready")
 					sp.Status = domain.PlayerStatusStopped
@@ -348,17 +277,20 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 						break wait
 					case domain.PlayerActionStop:
 						stop <- true
-						sp.Status = domain.PlayerStatusStopped
+						err := u.UpdateNPMessage(s, sp.Player, q, true)
+						if err != nil {
+							wlog("failed to update np message:", err)
+						}
 						break wait
 					case domain.PlayerActionKick:
 						stop <- true
-						sp.Status = domain.PlayerStatusStopped
 						return nil
 					default:
 						wlog("unknown action:", act)
 					}
 				case <-next:
 					stop <- true
+					q.Proceed()
 					break wait
 				case <-time.After(music.Duration + 30*time.Second):
 					stop <- true
@@ -366,11 +298,11 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 					break wait
 				}
 			}
-			sp.playtime += time.Since(sp.CurrentStartTime)
+			sp.playtime += music.Duration
 
 		case domain.PlayerStatusStopped:
 			switch <-sp.action {
-			case domain.PlayerActionPlay:
+			case domain.PlayerActionPlay, domain.PlayerActionSkip:
 				sp.Status = domain.PlayerStatusPlaying
 				break statusSwitch
 			case domain.PlayerActionKick:
@@ -378,4 +310,42 @@ func (u *playerUseCase) StartWorker(s *discordgo.Session, sp *speaker, vch, sch 
 			}
 		}
 	}
+}
+
+func (u *playerUseCase) UpdateNPMessage(s *discordgo.Session, p *domain.Player, q *domain.Queue, keepLast bool) error {
+	var msg *discordgo.Message
+	emb, err := util.BuildNPEmbed(s, p, q)
+	if err != nil {
+		return err
+	}
+	cmp := util.BuildNPComponent(p, q)
+
+	// get latest messageID in channel
+	npch, err := s.Channel(p.NPChannel.ID)
+	if err != nil {
+		return err
+	}
+	lastMessageID := npch.LastMessageID
+	if p.LastNPMessageID != "" && (lastMessageID == p.LastNPMessageID || !keepLast) {
+		msg, err = s.ChannelMessageEditComplex(&discordgo.MessageEdit{
+			Channel:    p.NPChannel.ID,
+			ID:         p.LastNPMessageID,
+			Embeds:     []*discordgo.MessageEmbed{emb},
+			Components: []discordgo.MessageComponent{cmp},
+		})
+	} else {
+		if p.LastNPMessageID != "" {
+			_ = s.ChannelMessageDelete(p.NPChannel.ID, p.LastNPMessageID)
+		}
+		msg, err = s.ChannelMessageSendComplex(p.NPChannel.ID, &discordgo.MessageSend{
+			Embeds:     []*discordgo.MessageEmbed{emb},
+			Components: []discordgo.MessageComponent{cmp},
+		})
+	}
+	if err != nil {
+		return err
+	}
+	p.LastNPMessageID = msg.ID
+
+	return nil
 }

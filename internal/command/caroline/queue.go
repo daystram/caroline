@@ -41,12 +41,12 @@ func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 		// get player and queue
 		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
-			log.Println("command: queue:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 		q, err := srv.UC.Queue.Get(i.GuildID)
 		if err != nil {
-			log.Println("command: queue:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
@@ -60,7 +60,7 @@ func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 		if len(i.ApplicationCommandData().Options) > 0 {
 			p, ok := i.ApplicationCommandData().Options[0].Value.(float64)
 			if !ok {
-				log.Println("command: queue: option type mismatch")
+				log.Printf("%s: %s: option type mismatch\n", i.Type, util.InteractionName(i))
 				return
 			}
 			if p < 1 {
@@ -88,7 +88,7 @@ func queueCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 			},
 		})
 		if err != nil {
-			log.Println("command: queue:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 		}
 	}
 }

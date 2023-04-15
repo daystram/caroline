@@ -52,23 +52,39 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			return
 		}
 		if err != nil {
-			log.Println("command: play:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
 		// get player and queue
-		p, err := srv.UC.Player.Get(i.GuildID)
-		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
-			log.Println("command: play:", err)
-			return
-		}
 		q, err := srv.UC.Queue.Get(i.GuildID)
 		if err != nil {
-			log.Println("command: play:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if errors.Is(err, domain.ErrNotPlaying) {
+			vch, err := s.Channel(vs.ChannelID)
+			if err != nil {
+				log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+				return
+			}
+			npch, err := s.Channel(i.ChannelID)
+			if err != nil {
+				log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+				return
+			}
+			p, err = srv.UC.Player.Create(s, vch, npch, q)
+			if err != nil {
+				log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+				return
+			}
+		} else if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
-		if util.IsPlayerReady(p) && !util.IsSameVC(p, vs) {
+		if !util.IsSameVC(p, vs) {
 			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseDifferentVC)
 			return
 		}
@@ -76,7 +92,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		// parse query and position
 		query, ok := i.ApplicationCommandData().Options[0].Value.(string)
 		if !ok {
-			log.Println("command: play: option type mismatch")
+			log.Printf("%s: %s: option type mismatch\n", i.Type, util.InteractionName(i))
 			return
 		}
 		query = strings.TrimSpace(query)
@@ -85,7 +101,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		if len(i.ApplicationCommandData().Options) > 1 {
 			posRaw, ok := i.ApplicationCommandData().Options[1].Value.(string)
 			if !ok {
-				log.Println("command: play: option type mismatch")
+				log.Printf("%s: %s: option type mismatch\n", i.Type, util.InteractionName(i))
 				return
 			}
 			p, err := util.ParseRelativePosOption(q, posRaw)
@@ -102,20 +118,20 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			Data: &discordgo.InteractionResponseData{
 				Embeds: []*discordgo.MessageEmbed{
 					{
-						Description: "Queueing...",
+						Description: "Adding to queue...",
 						Color:       common.ColorAction,
 					},
 				},
 			},
 		})
 		if err != nil {
-			log.Println("command: play:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 		}
 
 		// parse musics
 		meta, musics, err := srv.UC.Music.Parse(query, i.Member.User)
 		if err != nil {
-			log.Println("command: play:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
@@ -123,7 +139,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		for _, m := range musics {
 			pos, err = srv.UC.Queue.Enqueue(q, m, pos)
 			if err != nil {
-				log.Println("command: play:", err)
+				log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			}
 			pos++ // will also be 1-indexed after leaving this loop
 		}
@@ -143,7 +159,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Fields: []*discordgo.MessageEmbedField{
 					{
 						Name:   "Position",
-						Value:  fmt.Sprintf("%d - %d", pos+1-len(musics), pos), // pos is 1-indexed
+						Value:  fmt.Sprintf("%d to %d of %d", pos+1-len(musics), pos, len(q.Tracks)), // pos is 1-indexed
 						Inline: true,
 					},
 				},
@@ -160,32 +176,36 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Fields: []*discordgo.MessageEmbedField{
 					{
 						Name:   "Position",
-						Value:  fmt.Sprintf("%d", pos),
+						Value:  fmt.Sprintf("%d of %d", pos, len(q.Tracks)),
 						Inline: true,
 					},
 				},
 			}
 		}
-		_, err = s.ChannelMessageSendEmbed(i.ChannelID, resp)
+		_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Embeds: &[]*discordgo.MessageEmbed{resp},
+		})
 		if err != nil {
-			log.Println("command: play:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 		}
 
-		// play in voice channel
-		vch, err := s.Channel(vs.ChannelID)
-		if err != nil {
-			log.Println("command: play:", err)
-			return
+		if q.NowPlaying() == nil {
+			err = srv.UC.Queue.Jump(q, (q.CurrentPos+1)%len(q.Tracks))
+			if err != nil {
+				log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+				return
+			}
 		}
-		sch, err := s.Channel(i.ChannelID)
+		err = srv.UC.Player.Play(p)
 		if err != nil {
-			log.Println("command: play:", err)
-			return
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 		}
-
-		err = srv.UC.Player.Play(s, vch, sch)
-		if err != nil {
-			log.Println("command: play:", err)
+		if p.Status == domain.PlayerStatusPlaying {
+			err = srv.UC.Player.UpdateNPMessage(s, p, q, true)
+			if err != nil {
+				log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+				return
+			}
 		}
 	}
 }

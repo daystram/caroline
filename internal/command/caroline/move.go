@@ -51,19 +51,19 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			return
 		}
 		if err != nil {
-			log.Println("command: move:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
 		// get player and queue
 		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
-			log.Println("command: move:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 		q, err := srv.UC.Queue.Get(i.GuildID)
 		if err != nil {
-			log.Println("command: move:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
@@ -79,12 +79,12 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		// parse indices
 		f, ok := i.ApplicationCommandData().Options[0].Value.(float64)
 		if !ok {
-			log.Println("command: move: option type mismatch")
+			log.Printf("%s: %s: option type mismatch\n", i.Type, util.InteractionName(i))
 			return
 		}
 		t, ok := i.ApplicationCommandData().Options[1].Value.(float64)
 		if !ok {
-			log.Println("command: move: option type mismatch")
+			log.Printf("%s: %s: option type mismatch\n", i.Type, util.InteractionName(i))
 			return
 		}
 		from, to := int(f)-1, int(t)-1
@@ -110,9 +110,14 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 
 		// move
-		err = srv.UC.Player.Move(p, from, to)
+		err = srv.UC.Queue.Move(q, from, to)
 		if err != nil {
-			log.Println("command: move:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+		err = srv.UC.Player.UpdateNPMessage(s, p, q, true)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
@@ -128,7 +133,7 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			},
 		})
 		if err != nil {
-			log.Println("command: move:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 		}
 	}
 }

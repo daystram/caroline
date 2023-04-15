@@ -45,19 +45,19 @@ func jumpCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			return
 		}
 		if err != nil {
-			log.Println("command: jump:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
 		// get player and queue
 		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
-			log.Println("command: jump:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 		q, err := srv.UC.Queue.Get(i.GuildID)
 		if err != nil {
-			log.Println("command: jump:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
@@ -73,7 +73,7 @@ func jumpCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		// parse pos
 		posRaw, ok := i.ApplicationCommandData().Options[0].Value.(string)
 		if !ok {
-			log.Println("command: jump: option type mismatch")
+			log.Printf("%s: %s: option type mismatch\n", i.Type, util.InteractionName(i))
 			return
 		}
 		pos, err := util.ParseRelativePosOption(q, posRaw)
@@ -83,9 +83,14 @@ func jumpCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 
 		// jump queue
-		err = srv.UC.Player.Jump(p, pos)
+		err = srv.UC.Queue.Jump(q, pos)
 		if err != nil {
-			log.Println("command: jump:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+		err = srv.UC.Player.Skip(p)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
@@ -101,7 +106,7 @@ func jumpCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			},
 		})
 		if err != nil {
-			log.Println("command: jump:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 		}
 	}
 }

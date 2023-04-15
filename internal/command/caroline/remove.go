@@ -45,19 +45,19 @@ func removeCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Inter
 			return
 		}
 		if err != nil {
-			log.Println("command: remove:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
 		// get player and queue
 		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
-			log.Println("command: remove:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 		q, err := srv.UC.Queue.Get(i.GuildID)
 		if err != nil {
-			log.Println("command: remove:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
@@ -73,7 +73,7 @@ func removeCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Inter
 		// parse pos
 		posRaw, ok := i.ApplicationCommandData().Options[0].Value.(string)
 		if !ok {
-			log.Println("command: remove: option type mismatch")
+			log.Printf("%s: %s: option type mismatch\n", i.Type, util.InteractionName(i))
 			return
 		}
 		pos, err := util.ParseRelativePosOption(q, posRaw)
@@ -98,9 +98,9 @@ func removeCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Inter
 		}
 
 		// remove from queue
-		err = srv.UC.Player.Remove(p, pos)
+		err = srv.UC.Queue.Remove(q, pos)
 		if err != nil {
-			log.Println("command: remove:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
@@ -116,7 +116,7 @@ func removeCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Inter
 			},
 		})
 		if err != nil {
-			log.Println("command: remove:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 		}
 	}
 }

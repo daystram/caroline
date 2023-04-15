@@ -7,6 +7,7 @@ require (
 	github.com/daystram/dgvoice v0.1.0
 	github.com/zmb3/spotify/v2 v2.0.1
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
+	golang.org/x/text v0.9.0
 )
 
 require (
