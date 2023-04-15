@@ -9,6 +9,17 @@ import (
 	"github.com/daystram/caroline/internal/domain"
 )
 
+func InteractionName(i *discordgo.InteractionCreate) string {
+	switch i.Type {
+	case discordgo.InteractionApplicationCommand:
+		return i.ApplicationCommandData().Name
+	case discordgo.InteractionMessageComponent:
+		return i.MessageComponentData().CustomID
+	default:
+		return ""
+	}
+}
+
 func GetUserVS(s *discordgo.Session, i *discordgo.InteractionCreate, must bool, msg string) (*discordgo.VoiceState, error) {
 	vs, err := s.State.VoiceState(i.GuildID, i.Member.User.ID)
 	if must && errors.Is(err, discordgo.ErrStateNotFound) {

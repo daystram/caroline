@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/domain"
@@ -85,7 +86,7 @@ func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.Message
 			},
 			{
 				Name:   "Loop",
-				Value:  strings.Title(q.Loop.String()),
+				Value:  cases.Title(language.English).String(q.Loop.String()),
 				Inline: true,
 			},
 		},
@@ -109,10 +110,16 @@ func ParseRelativePosOption(q *domain.Queue, raw string) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		if raw[0] == '+' {
+		if p == 0 {
+			return 0, domain.ErrBadFormat
+		}
+		switch raw[0] {
+		case '+':
 			pos = q.CurrentPos + p
-		} else {
-			pos = q.CurrentPos - p
+		case '-':
+			pos = q.CurrentPos - p + 1
+		default:
+			return 0, domain.ErrBadFormat
 		}
 	default:
 		return 0, domain.ErrBadFormat

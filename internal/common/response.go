@@ -8,7 +8,7 @@ var (
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{
 				{
-					Description: "You have to be in the same voice channel as me!",
+					Description: "We have to be in the same voice channel!",
 					Color:       ColorError,
 				},
 			},

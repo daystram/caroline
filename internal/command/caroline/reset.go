@@ -36,14 +36,19 @@ func resetCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 			return
 		}
 		if err != nil {
-			log.Println("command: reset:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
-		// get player
+		// get player and queue
 		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
-			log.Println("command: reset:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+		q, err := srv.UC.Queue.Get(i.GuildID)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
 
@@ -53,13 +58,6 @@ func resetCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 		}
 		if !util.IsSameVC(p, vs) {
 			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseDifferentVC)
-			return
-		}
-
-		// reset player
-		err = srv.UC.Player.Reset(p)
-		if err != nil {
-			log.Println("command: reset:", err)
 			return
 		}
 
@@ -75,7 +73,19 @@ func resetCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Intera
 			},
 		})
 		if err != nil {
-			log.Println("command: reset:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+		}
+
+		// reset player and queue
+		err = srv.UC.Queue.Clear(q)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+		err = srv.UC.Player.Stop(p)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
 		}
 	}
 }

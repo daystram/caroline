@@ -35,7 +35,7 @@ func (r *queueRepository) Create(guildID string) (*domain.Queue, error) {
 	return q, nil
 }
 
-func (r *queueRepository) GetOne(guildID string) (*domain.Queue, error) {
+func (r *queueRepository) Get(guildID string) (*domain.Queue, error) {
 	r.lock.RLock()
 	defer r.lock.RUnlock()
 
@@ -60,34 +60,7 @@ func (r *queueRepository) Enqueue(guildID string, music *domain.Music) (int, err
 	return len(q.Tracks) - 1, nil
 }
 
-func (r *queueRepository) Pop(guildID string) (*domain.Music, error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
-	q, ok := r.queues[guildID]
-	if !ok {
-		return nil, domain.ErrQueueNotFound
-	}
-
-	switch q.Loop {
-	case domain.LoopModeOff:
-		if q.CurrentPos == len(q.Tracks)-1 {
-			return nil, nil // end of queue
-		}
-		q.CurrentPos++
-	case domain.LoopModeOne:
-		// do not update current pos
-	case domain.LoopModeAll:
-		if q.CurrentPos == len(q.Tracks)-1 {
-			q.CurrentPos = -1
-		}
-		q.CurrentPos++
-	}
-
-	return q.NowPlaying(), nil
-}
-
-func (r *queueRepository) JumpPos(guildID string, pos int) error {
+func (r *queueRepository) Jump(guildID string, pos int) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -125,11 +98,10 @@ func (r *queueRepository) Move(guildID string, from, to int) error {
 			q.Tracks[i] = q.Tracks[i+1]
 		}
 		q.Tracks[to] = temp
-		if from < q.CurrentPos && q.CurrentPos <= to {
-			q.CurrentPos--
-		}
 		if q.CurrentPos == from {
 			q.CurrentPos = to
+		} else if from < q.CurrentPos && q.CurrentPos <= to {
+			q.CurrentPos--
 		}
 	}
 	if to < from {
@@ -138,11 +110,10 @@ func (r *queueRepository) Move(guildID string, from, to int) error {
 			q.Tracks[i] = q.Tracks[i-1]
 		}
 		q.Tracks[to] = temp
-		if to <= q.CurrentPos && q.CurrentPos < from {
-			q.CurrentPos++
-		}
 		if q.CurrentPos == from {
 			q.CurrentPos = to
+		} else if to <= q.CurrentPos && q.CurrentPos < from {
+			q.CurrentPos++
 		}
 	}
 
@@ -188,7 +159,14 @@ func (r *queueRepository) Clear(guildID string) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	delete(r.queues, guildID)
+	q, ok := r.queues[guildID]
+	if !ok {
+		return domain.ErrQueueNotFound
+	}
+
+	q.CurrentPos = -1
+	q.Tracks = make([]*domain.Music, 0)
+	q.Loop = domain.LoopModeOff
 
 	return nil
 }

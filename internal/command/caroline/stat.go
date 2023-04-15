@@ -11,6 +11,7 @@ import (
 	"github.com/daystram/caroline/internal/common"
 	"github.com/daystram/caroline/internal/config"
 	"github.com/daystram/caroline/internal/server"
+	"github.com/daystram/caroline/internal/util"
 )
 
 const statCommandName = "stat"
@@ -43,7 +44,7 @@ func statCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 					{
 						Title:       "About Me",
 						Description: "Hi! I'm Caroline!\nhttps://github.com/daystram/caroline",
-						Color:       common.ColorQueue,
+						Color:       common.ColorBrand,
 						Fields: []*discordgo.MessageEmbedField{
 							{
 								Name:   "Version",
@@ -67,12 +68,12 @@ func statCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 							},
 							{
 								Name:   "Total Playtime",
-								Value:  fmt.Sprintf("`%s`", srv.UC.Player.TotalPlaytime().Round(time.Second).String()),
+								Value:  srv.UC.Player.TotalPlaytime().Round(time.Second).String(),
 								Inline: true,
 							},
 							{
 								Name:   "Uptime",
-								Value:  fmt.Sprintf("`%s`", time.Since(srv.StartTime).Round(time.Second).String()),
+								Value:  time.Since(srv.StartTime).Round(time.Second).String(),
 								Inline: true,
 							},
 						},
@@ -84,7 +85,7 @@ func statCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			},
 		})
 		if err != nil {
-			log.Println("command: stat:", err)
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 		}
 	}
 }
