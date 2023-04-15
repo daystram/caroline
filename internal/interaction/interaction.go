@@ -15,13 +15,13 @@ type RegisterFunc func(*server.Server, map[string]func(*discordgo.Session, *disc
 func interactions() []RegisterFunc {
 	return []RegisterFunc{
 		caroline.RegisterNPComponent,
+		caroline.RegisterQueueComponent,
 		caroline.RegisterPlay,
 		caroline.RegisterJump,
 		caroline.RegisterMove,
 		caroline.RegisterRemove,
 		caroline.RegisterReset,
 		caroline.RegisterBye,
-		caroline.RegisterQueue,
 		caroline.RegisterStat,
 	}
 }

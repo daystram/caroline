@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"golang.org/x/text/cases"
@@ -13,81 +14,108 @@ import (
 	"github.com/daystram/caroline/internal/domain"
 )
 
-func FormatQueue(q *domain.Queue, p *domain.Player, page int) *discordgo.MessageEmbed {
-	if len(q.Tracks) == 0 {
-		return &discordgo.MessageEmbed{
+const (
+	queueMaxTitleLength = 50
+)
+
+func BuildQueueEmbed(p *domain.Player, q *domain.Queue, items []*domain.Music, page int) []*discordgo.MessageEmbed {
+	if len(items) == 0 {
+		return []*discordgo.MessageEmbed{
+			{
+				Title:       "Queue",
+				Description: fmt.Sprintf("```py\n   [ ] %-*s\n```", queueMaxTitleLength, "-- Empty --"),
+				Color:       common.ColorQueue,
+			},
+		}
+	}
+
+	builder := strings.Builder{}
+	for i, music := range items {
+		music := *music
+		builder.WriteString("```py\n")
+
+		i += page * domain.QueuePageSize
+		if i == q.CurrentPos {
+			if p.Status == domain.PlayerStatusPlaying {
+				builder.WriteString(">>")
+			} else {
+				builder.WriteString("--")
+			}
+		} else {
+			builder.WriteString("  ")
+		}
+
+		var indexPadding int
+		if x, y := len(strconv.Itoa((page+1)*domain.QueuePageSize)), len(q.Tracks); x < y {
+			indexPadding = x
+		} else {
+			indexPadding = y
+		}
+		title := music.Query
+		if music.Loaded {
+			title = music.Title
+		}
+		if len(title) > queueMaxTitleLength {
+			title = title[:queueMaxTitleLength-3] + "..."
+		}
+		if i == q.CurrentPos {
+			builder.WriteString(fmt.Sprintf(" [%*d] %-*s", indexPadding, i+1, queueMaxTitleLength, title))
+		} else {
+			builder.WriteString(fmt.Sprintf("  %*d  %-*s", indexPadding, i+1, queueMaxTitleLength, title))
+		}
+		builder.WriteString("\n```")
+	}
+
+	return []*discordgo.MessageEmbed{
+		{
 			Title:       "Queue",
-			Description: "*Empty*",
+			Description: builder.String(),
 			Color:       common.ColorQueue,
-		}
-	}
-
-	min := func(a, b int) int {
-		if a < b {
-			return a
-		}
-		return b
-	}
-
-	qStr := ""
-	const pageSize = 10
-	if page < 1 {
-		page = q.CurrentPos/pageSize + 1
-	}
-	if (page-1)*pageSize >= len(q.Tracks) {
-		qStr = "No more tracks!"
-	} else {
-		pad := len(strconv.Itoa(min(len(q.Tracks), pageSize*page)))
-		for i, t := range q.Tracks[pageSize*(page-1) : min(pageSize*page, len(q.Tracks))] {
-			i += pageSize * (page - 1)
-			if i == q.CurrentPos {
-				if p.Status == domain.PlayerStatusPlaying {
-					qStr += "`>> "
-				} else {
-					qStr += "`-- "
-				}
-			} else {
-				qStr += "`   "
-			}
-
-			title := fmt.Sprintf("(?) %s", t.Query)
-			if t.Loaded {
-				title = t.Title
-			}
-			qStr += fmt.Sprintf("[%*d]  %-27.27s  [@%s]", pad, i+1, title, t.QueuedByUsername)
-
-			if i == q.CurrentPos {
-				if p.Status == domain.PlayerStatusPlaying {
-					qStr += "`"
-				} else {
-					qStr += "`"
-				}
-			} else {
-				qStr += "`"
-			}
-			qStr += "\n"
-		}
-	}
-
-	return &discordgo.MessageEmbed{
-		Title:       "Queue",
-		Description: qStr,
-		Color:       common.ColorQueue,
-		Fields: []*discordgo.MessageEmbedField{
-			{
-				Name:   "Size",
-				Value:  fmt.Sprintf("%d track%s", len(q.Tracks), Plural(len(q.Tracks))),
-				Inline: true,
+			Fields: []*discordgo.MessageEmbedField{
+				{
+					Name:   "Size",
+					Value:  fmt.Sprintf("%d %s", len(q.Tracks), Plural("track", len(q.Tracks))),
+					Inline: true,
+				},
+				{
+					Name:   "Page",
+					Value:  fmt.Sprintf("%d of %d", page+1, (len(q.Tracks)-1)/domain.QueuePageSize+1),
+					Inline: true,
+				},
+				{
+					Name:   "Repeat",
+					Value:  cases.Title(language.English).String(q.Loop.String()),
+					Inline: true,
+				},
 			},
-			{
-				Name:   "Page",
-				Value:  fmt.Sprintf("%d/%d", page, (len(q.Tracks)-1)/pageSize+1),
-				Inline: true,
-			},
-			{
-				Name:   "Loop",
-				Value:  cases.Title(language.English).String(q.Loop.String()),
-				Inline: true,
+		},
+	}
+}
+
+func BuildQueueComponent(p *domain.Player, q *domain.Queue, page int) []discordgo.MessageComponent {
+	prevBtn := discordgo.Button{
+		Emoji: discordgo.ComponentEmoji{Name: "⬅️"},
+		Label: "Previous Page",
+		Style: discordgo.SecondaryButton,
+		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty() ||
+			page == 0,
+		CustomID: common.QueueComponentPreviousID,
+	}
+
+	nextBtn := discordgo.Button{
+		Emoji: discordgo.ComponentEmoji{Name: "➡️"},
+		Label: "Next Page",
+		Style: discordgo.SecondaryButton,
+		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty() ||
+			page == len(q.Tracks)/domain.QueuePageSize,
+		CustomID: common.QueueComponentNextID,
+	}
+
+	return []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				prevBtn,
+				nextBtn,
 			},
 		},
 	}

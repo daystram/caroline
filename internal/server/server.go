@@ -50,5 +50,12 @@ func Start(cfg *config.Config, musicUC domain.MusicUseCase, playerUC domain.Play
 }
 
 func (s *Server) Stop() error {
+	for _, p := range s.UC.Player.GetAll() {
+		q, err := s.UC.Queue.Get(p.GuildID)
+		if err != nil {
+			continue
+		}
+		_ = s.UC.Player.Kick(s.Session, p, q)
+	}
 	return s.Session.Close()
 }

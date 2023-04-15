@@ -1,5 +1,9 @@
 package domain
 
+const (
+	QueuePageSize = 10
+)
+
 type LoopMode uint
 
 const (
@@ -26,6 +30,9 @@ type Queue struct {
 	Tracks     []*Music
 	CurrentPos int
 	Loop       LoopMode
+
+	LastQueueMessageID string
+	LastPage           int
 }
 
 func (q *Queue) NowPlaying() *Music {
@@ -59,6 +66,25 @@ func (q *Queue) Proceed() *Music {
 
 func (q *Queue) IsEmpty() bool {
 	return len(q.Tracks) == 0
+}
+
+func (q *Queue) GetPageItems(page int) ([]*Music, int, error) {
+	if page == -1 {
+		page = q.CurrentPos / QueuePageSize
+	}
+	if page < 0 || page > (len(q.Tracks)-1)/QueuePageSize {
+		return nil, -1, ErrQueueOutOfBounds
+	}
+
+	start := page * QueuePageSize
+	end := (page + 1) * QueuePageSize
+	if limit := len(q.Tracks); end > limit {
+		end = limit
+	}
+	items := q.Tracks[start:end]
+
+	q.LastPage = page
+	return items, page, nil
 }
 
 type QueueUseCase interface {

@@ -10,13 +10,15 @@ import (
 	"github.com/daystram/caroline/internal/domain"
 )
 
-func BuildNPEmbed(s *discordgo.Session, p *domain.Player, q *domain.Queue) (*discordgo.MessageEmbed, error) {
+func BuildNPEmbed(s *discordgo.Session, p *domain.Player, q *domain.Queue) ([]*discordgo.MessageEmbed, error) {
 	music := q.NowPlaying()
 	if music == nil {
-		return &discordgo.MessageEmbed{
-			Color:       common.ColorPlayerStopped,
-			Title:       "Stopped",
-			Description: "_Queue is empty_",
+		return []*discordgo.MessageEmbed{
+			{
+				Color:       common.ColorPlayerStopped,
+				Title:       "Stopped",
+				Description: "_Queue is empty_",
+			},
 		}, nil
 	}
 	user, err := s.User(music.QueuedByID)
@@ -57,7 +59,7 @@ func BuildNPEmbed(s *discordgo.Session, p *domain.Player, q *domain.Queue) (*dis
 			title = "Stopped"
 			duration = "_Pending_"
 		}
-		source = fmt.Sprintf("`%s`", music.Query)
+		source = fmt.Sprintf("```%s```", music.Query)
 	case music.Loaded:
 		if p.Status == domain.PlayerStatusPlaying {
 			color = common.ColorPlayerPlaying
@@ -74,50 +76,52 @@ func BuildNPEmbed(s *discordgo.Session, p *domain.Player, q *domain.Queue) (*dis
 		}
 	}
 
-	return &discordgo.MessageEmbed{
-		Color:       color,
-		Title:       title,
-		Description: description,
-		Fields: []*discordgo.MessageEmbedField{
-			{
-				Name:   "Source",
-				Value:  source,
-				Inline: false,
+	return []*discordgo.MessageEmbed{
+		{
+			Color:       color,
+			Title:       title,
+			Description: description,
+			Fields: []*discordgo.MessageEmbedField{
+				{
+					Name:   "Source",
+					Value:  source,
+					Inline: false,
+				},
+				{
+					Name:   "Origin",
+					Value:  origin,
+					Inline: true,
+				},
+				{
+					Name:   "Duration",
+					Value:  duration,
+					Inline: true,
+				},
+				{
+					Name:   "Position",
+					Value:  position,
+					Inline: true,
+				},
 			},
-			{
-				Name:   "Origin",
-				Value:  origin,
-				Inline: true,
-			},
-			{
-				Name:   "Duration",
-				Value:  duration,
-				Inline: true,
-			},
-			{
-				Name:   "Position",
-				Value:  position,
-				Inline: true,
-			},
+			Author:    author,
+			Thumbnail: thumbnail,
+			Timestamp: startTime.Format(time.RFC3339),
 		},
-		Author:    author,
-		Thumbnail: thumbnail,
-		Timestamp: startTime.Format(time.RFC3339),
 	}, nil
 }
 
-func BuildNPComponent(p *domain.Player, q *domain.Queue) discordgo.MessageComponent {
+func BuildNPComponent(p *domain.Player, q *domain.Queue) []discordgo.MessageComponent {
 	prevBtn := discordgo.Button{
 		Emoji: discordgo.ComponentEmoji{Name: "⏮"},
 		Label: "Previous",
-		Style: discordgo.SecondaryButton,
+		Style: discordgo.PrimaryButton,
 		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty() ||
 			(q.CurrentPos == 0 && q.Loop != domain.LoopModeAll),
 		CustomID: common.NPComponentPreviousID,
 	}
 
 	togglePlayBtn := discordgo.Button{
-		Style:    discordgo.SecondaryButton,
+		Style:    discordgo.PrimaryButton,
 		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty(),
 		CustomID: common.NPComponentTogglePlayID,
 	}
@@ -133,34 +137,61 @@ func BuildNPComponent(p *domain.Player, q *domain.Queue) discordgo.MessageCompon
 	nextBtn := discordgo.Button{
 		Emoji: discordgo.ComponentEmoji{Name: "⏭"},
 		Label: "Next",
-		Style: discordgo.SecondaryButton,
+		Style: discordgo.PrimaryButton,
 		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty() ||
 			(q.CurrentPos == len(q.Tracks)-1 && q.Loop != domain.LoopModeAll),
 		CustomID: common.NPComponentNextID,
 	}
 
-	toggleLoop := discordgo.Button{
-		Style:    discordgo.SecondaryButton,
+	return []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				prevBtn,
+				togglePlayBtn,
+				nextBtn,
+			},
+		},
+	}
+}
+
+func BuildCommonComponent(p *domain.Player, q *domain.Queue) []discordgo.MessageComponent {
+	toggleQueueBtn := discordgo.Button{
+		Label:    "Queue",
 		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty(),
-		CustomID: common.NPComponentToggleLoopID,
+		CustomID: common.CommonComponentToggleQueueID,
+	}
+	if p.ShowQueue {
+		toggleQueueBtn.Label = "Hide queue"
+		toggleQueueBtn.Style = discordgo.DangerButton
+	} else {
+		toggleQueueBtn.Label = "Queue"
+		toggleQueueBtn.Style = discordgo.SecondaryButton
+	}
+
+	toggleLoopBtn := discordgo.Button{
+		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty(),
+		CustomID: common.CommonComponentToggleLoopID,
 	}
 	switch q.Loop {
 	case domain.LoopModeOff:
-		toggleLoop.Label = "Repeat off"
+		toggleLoopBtn.Label = "Repeat off"
+		toggleLoopBtn.Style = discordgo.SecondaryButton
 	case domain.LoopModeOne:
-		toggleLoop.Emoji = discordgo.ComponentEmoji{Name: "🔂"}
-		toggleLoop.Label = "Repeat one"
+		toggleLoopBtn.Emoji = discordgo.ComponentEmoji{Name: "🔂"}
+		toggleLoopBtn.Label = "Repeat one"
+		toggleLoopBtn.Style = discordgo.SuccessButton
 	case domain.LoopModeAll:
-		toggleLoop.Emoji = discordgo.ComponentEmoji{Name: "🔁"}
-		toggleLoop.Label = "Repeat all"
+		toggleLoopBtn.Emoji = discordgo.ComponentEmoji{Name: "🔁"}
+		toggleLoopBtn.Label = "Repeat all"
+		toggleLoopBtn.Style = discordgo.SuccessButton
 	}
 
-	return discordgo.ActionsRow{
-		Components: []discordgo.MessageComponent{
-			prevBtn,
-			togglePlayBtn,
-			nextBtn,
-			toggleLoop,
+	return []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				toggleQueueBtn,
+				toggleLoopBtn,
+			},
 		},
 	}
 }

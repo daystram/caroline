@@ -16,7 +16,8 @@ func RegisterNPComponent(srv *server.Server, interactionHandlers map[string]func
 	interactionHandlers[common.NPComponentPreviousID] = npComponentPrevious(srv)
 	interactionHandlers[common.NPComponentNextID] = npComponentNext(srv)
 	interactionHandlers[common.NPComponentTogglePlayID] = npComponentTogglePlay(srv)
-	interactionHandlers[common.NPComponentToggleLoopID] = npComponentToggleLoop(srv)
+	interactionHandlers[common.CommonComponentToggleLoopID] = commonComponentToggleLoop(srv)
+	interactionHandlers[common.CommonComponentToggleQueueID] = commonComponentToggleQueue(srv)
 	return nil
 }
 
@@ -180,7 +181,7 @@ func npComponentTogglePlay(srv *server.Server) func(*discordgo.Session, *discord
 	}
 }
 
-func npComponentToggleLoop(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
+func commonComponentToggleLoop(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		// check if user in voice channel
 		vs, err := util.GetUserVS(s, i, true, "You have to be in a voice channel!")
@@ -228,7 +229,40 @@ func npComponentToggleLoop(srv *server.Server) func(*discordgo.Session, *discord
 			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
 		}
-		err = srv.UC.Player.UpdateNPMessage(s, p, q, true)
+		err = srv.UC.Player.UpdateNPMessage(s, p, q, -1, false, true)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseUpdateMessage})
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+		}
+	}
+}
+
+func commonComponentToggleQueue(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
+	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// get player and queue
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+		q, err := srv.UC.Queue.Get(i.GuildID)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+
+		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
+			return
+		}
+
+		// update queue message
+		err = srv.UC.Player.UpdateNPMessage(s, p, q, -1, true, true)
 		if err != nil {
 			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
