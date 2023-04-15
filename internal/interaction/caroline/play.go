@@ -97,7 +97,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 		query = strings.TrimSpace(query)
 
-		pos := -1
+		endPos := -1
 		if len(i.ApplicationCommandData().Options) > 1 {
 			posRaw, ok := i.ApplicationCommandData().Options[1].Value.(string)
 			if !ok {
@@ -109,7 +109,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				_ = s.InteractionRespond(i.Interaction, common.InteractionResponseInvalidPosition)
 				return
 			}
-			pos = p
+			endPos = p
 		}
 
 		// initial response
@@ -137,12 +137,13 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 
 		// enqueue
 		for _, m := range musics {
-			pos, err = srv.UC.Queue.Enqueue(q, m, pos)
+			endPos, err = srv.UC.Queue.Enqueue(q, m, endPos)
 			if err != nil {
 				log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			}
-			pos++ // will also be 1-indexed after leaving this loop
+			endPos++
 		}
+		startPos := endPos - len(musics)
 
 		// respond queue summary
 		var resp *discordgo.MessageEmbed
@@ -159,7 +160,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Fields: []*discordgo.MessageEmbedField{
 					{
 						Name:   "Position",
-						Value:  fmt.Sprintf("%d to %d of %d", pos+1-len(musics), pos, len(q.Tracks)), // pos is 1-indexed
+						Value:  fmt.Sprintf("%d to %d of %d", startPos+1, endPos, len(q.Tracks)),
 						Inline: true,
 					},
 				},
@@ -176,7 +177,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Fields: []*discordgo.MessageEmbedField{
 					{
 						Name:   "Position",
-						Value:  fmt.Sprintf("%d of %d", pos, len(q.Tracks)),
+						Value:  fmt.Sprintf("%d of %d", startPos+1, len(q.Tracks)),
 						Inline: true,
 					},
 				},
@@ -189,8 +190,9 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 		}
 
-		if q.NowPlaying() == nil {
-			err = srv.UC.Queue.Jump(q, (q.CurrentPos+1)%len(q.Tracks))
+		if p.Status != domain.PlayerStatusPlaying {
+			// immediately play music (or first of the series when multiple are added) when player is not playing
+			err = srv.UC.Queue.Jump(q, startPos)
 			if err != nil {
 				log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 				return
