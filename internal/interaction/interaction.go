@@ -1,18 +1,18 @@
-package command
+package interaction
 
 import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/daystram/caroline/internal/command/caroline"
+	"github.com/daystram/caroline/internal/interaction/caroline"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/util"
 )
 
 type RegisterFunc func(*server.Server, map[string]func(*discordgo.Session, *discordgo.InteractionCreate)) error
 
-func commands() []RegisterFunc {
+func interactions() []RegisterFunc {
 	return []RegisterFunc{
 		caroline.RegisterNPComponent,
 		caroline.RegisterPlay,
@@ -29,8 +29,8 @@ func commands() []RegisterFunc {
 func RegisterAll(srv *server.Server) error {
 	interactionHandlers := map[string]func(*discordgo.Session, *discordgo.InteractionCreate){}
 
-	for _, r := range commands() {
-		err := r(srv, interactionHandlers)
+	for _, register := range interactions() {
+		err := register(srv, interactionHandlers)
 		if err != nil {
 			return err
 		}
@@ -40,10 +40,10 @@ func RegisterAll(srv *server.Server) error {
 		interaction := util.InteractionName(i)
 		h, ok := interactionHandlers[interaction]
 		if !ok {
-			log.Printf("[@%s#%s] %s: unknown interaction: %s", i.Member.User.Username, i.Member.User.Discriminator, i.Type, interaction)
+			log.Printf("[%s:@%s#%s] %s: unknown interaction: %s", i.GuildID, i.Member.User.Username, i.Member.User.Discriminator, i.Type, interaction)
 			return
 		}
-		log.Printf("[@%s#%s] %s: %s", i.Member.User.Username, i.Member.User.Discriminator, i.Type, interaction)
+		log.Printf("[%s:@%s#%s] %s: %s", i.GuildID, i.Member.User.Username, i.Member.User.Discriminator, i.Type, interaction)
 		h(s, i)
 	})
 
