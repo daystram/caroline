@@ -6,8 +6,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/daystram/caroline/internal/command"
 	"github.com/daystram/caroline/internal/config"
+	"github.com/daystram/caroline/internal/interaction"
 	"github.com/daystram/caroline/internal/repository"
 	"github.com/daystram/caroline/internal/server"
 	"github.com/daystram/caroline/internal/usecase"
@@ -67,7 +67,7 @@ func Main(args []string) error {
 
 	defer func() {
 		log.Println("exit: server stopping")
-		_ = command.UnregisterAll(srv)
+		_ = interaction.UnregisterAll(srv)
 		err := srv.Stop()
 		if err != nil {
 			log.Print("exit:", err)
@@ -75,7 +75,7 @@ func Main(args []string) error {
 		}
 	}()
 
-	err = command.RegisterAll(srv)
+	err = interaction.RegisterAll(srv)
 	if err != nil {
 		return err
 	}
