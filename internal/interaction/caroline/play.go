@@ -201,7 +201,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 		}
 		if p.Status == domain.PlayerStatusPlaying {
-			err = srv.UC.Player.UpdateNPMessage(s, p, q, true)
+			err = srv.UC.Player.UpdateNPMessage(s, p, q, -1, false, true)
 			if err != nil {
 				log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 				return

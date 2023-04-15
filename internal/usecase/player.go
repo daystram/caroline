@@ -110,6 +110,18 @@ func (u *playerUseCase) Get(guildID string) (*domain.Player, error) {
 	return sp.Player, nil
 }
 
+func (u *playerUseCase) GetAll() []*domain.Player {
+	u.lock.RLock()
+	defer u.lock.RUnlock()
+
+	players := make([]*domain.Player, 0, len(u.speakers))
+	for _, sp := range u.speakers {
+		players = append(players, sp.Player)
+	}
+
+	return players
+}
+
 func (u *playerUseCase) Play(p *domain.Player) error {
 	u.lock.Lock()
 	defer u.lock.Unlock()
@@ -173,7 +185,7 @@ func (u *playerUseCase) Kick(s *discordgo.Session, p *domain.Player, q *domain.Q
 	delete(u.speakers, p.GuildID)
 
 	_ = sp.Uninitialize()
-	_ = u.UpdateNPMessage(s, sp.Player, q, false)
+	_ = u.UpdateNPMessage(s, sp.Player, q, -1, false, false)
 	sp.action <- domain.PlayerActionKick
 	return nil
 }
@@ -214,13 +226,13 @@ func (u *playerUseCase) startSpeakerWorker(s *discordgo.Session, sp *speaker, q 
 				// end of queue
 				sp.Status = domain.PlayerStatusStopped
 				q.Proceed()
-				err := u.UpdateNPMessage(s, sp.Player, q, true)
+				err := u.UpdateNPMessage(s, sp.Player, q, -1, false, true)
 				if err != nil {
 					wlog("failed to update np message:", err)
 				}
 				break statusSwitch
 			}
-			err := u.UpdateNPMessage(s, sp.Player, q, true)
+			err := u.UpdateNPMessage(s, sp.Player, q, -1, false, true)
 			if err != nil {
 				wlog("failed to update np message:", err)
 			}
@@ -236,7 +248,7 @@ func (u *playerUseCase) startSpeakerWorker(s *discordgo.Session, sp *speaker, q 
 					q.Proceed()
 					break statusSwitch
 				}
-				err = u.UpdateNPMessage(s, sp.Player, q, true)
+				err = u.UpdateNPMessage(s, sp.Player, q, -1, false, true)
 				if err != nil {
 					wlog("failed to update np message:", err)
 				}
@@ -277,7 +289,7 @@ func (u *playerUseCase) startSpeakerWorker(s *discordgo.Session, sp *speaker, q 
 						break wait
 					case domain.PlayerActionStop:
 						stop <- true
-						err := u.UpdateNPMessage(s, sp.Player, q, true)
+						err := u.UpdateNPMessage(s, sp.Player, q, -1, false, true)
 						if err != nil {
 							wlog("failed to update np message:", err)
 						}
@@ -312,13 +324,27 @@ func (u *playerUseCase) startSpeakerWorker(s *discordgo.Session, sp *speaker, q 
 	}
 }
 
-func (u *playerUseCase) UpdateNPMessage(s *discordgo.Session, p *domain.Player, q *domain.Queue, keepLast bool) error {
+func (u *playerUseCase) UpdateNPMessage(s *discordgo.Session, p *domain.Player, q *domain.Queue, queuePage int, toggleQueue, keepLast bool) error {
 	var msg *discordgo.Message
-	emb, err := util.BuildNPEmbed(s, p, q)
+	if toggleQueue {
+		p.ShowQueue = !p.ShowQueue
+	}
+
+	// build embeds and compnents
+	embs, err := util.BuildNPEmbed(s, p, q)
 	if err != nil {
 		return err
 	}
-	cmp := util.BuildNPComponent(p, q)
+	cmps := util.BuildNPComponent(p, q)
+	if p.ShowQueue {
+		items, queuePage, err := q.GetPageItems(queuePage)
+		if err != nil {
+			return err
+		}
+		embs = append(embs, util.BuildQueueEmbed(p, q, items, queuePage)...)
+		cmps = append(util.BuildQueueComponent(p, q, queuePage), cmps...)
+	}
+	cmps = append(cmps, util.BuildCommonComponent(p, q)...)
 
 	// get latest messageID in channel
 	npch, err := s.Channel(p.NPChannel.ID)
@@ -330,16 +356,16 @@ func (u *playerUseCase) UpdateNPMessage(s *discordgo.Session, p *domain.Player, 
 		msg, err = s.ChannelMessageEditComplex(&discordgo.MessageEdit{
 			Channel:    p.NPChannel.ID,
 			ID:         p.LastNPMessageID,
-			Embeds:     []*discordgo.MessageEmbed{emb},
-			Components: []discordgo.MessageComponent{cmp},
+			Embeds:     embs,
+			Components: cmps,
 		})
 	} else {
 		if p.LastNPMessageID != "" {
 			_ = s.ChannelMessageDelete(p.NPChannel.ID, p.LastNPMessageID)
 		}
 		msg, err = s.ChannelMessageSendComplex(p.NPChannel.ID, &discordgo.MessageSend{
-			Embeds:     []*discordgo.MessageEmbed{emb},
-			Components: []discordgo.MessageComponent{cmp},
+			Embeds:     embs,
+			Components: cmps,
 		})
 	}
 	if err != nil {

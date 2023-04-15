@@ -1,9 +1,9 @@
 package util
 
-func Plural(n int) string {
+func Plural(w string, n int) string {
 	if n == 1 {
-		return ""
+		return w
 	}
 
-	return "s"
+	return w + "s"
 }
