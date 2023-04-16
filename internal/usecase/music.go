@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/google/uuid"
 
 	"github.com/daystram/caroline/internal/domain"
 )
@@ -43,6 +44,7 @@ func (u *musicUseCase) Parse(query string, user *discordgo.User) (string, []*dom
 		}
 		for i, t := range tracks {
 			musics = append(musics, &domain.Music{
+				ID:               uuid.NewString(),
 				Query:            fmt.Sprintf("(%d) %s", i+1, query),
 				QueuedAt:         time.Now(),
 				QueuedByID:       user.ID,
@@ -56,6 +58,7 @@ func (u *musicUseCase) Parse(query string, user *discordgo.User) (string, []*dom
 	case spotifyTrackRegex.MatchString(query):
 		trackID := spotifyTrackRegex.FindStringSubmatch(query)[spotifyTrackRegex.SubexpIndex("trackID")]
 		musics = append(musics, &domain.Music{
+			ID:               uuid.NewString(),
 			Query:            query,
 			QueuedAt:         time.Now(),
 			QueuedByID:       user.ID,
@@ -67,6 +70,7 @@ func (u *musicUseCase) Parse(query string, user *discordgo.User) (string, []*dom
 	case youtubeVideoRegex.MatchString(query):
 		videoID := youtubeVideoRegex.FindStringSubmatch(query)[youtubeVideoRegex.SubexpIndex("videoID")]
 		musics = append(musics, &domain.Music{
+			ID:               uuid.NewString(),
 			Query:            query,
 			QueuedAt:         time.Now(),
 			QueuedByID:       user.ID,
@@ -77,6 +81,7 @@ func (u *musicUseCase) Parse(query string, user *discordgo.User) (string, []*dom
 
 	default:
 		musics = append(musics, &domain.Music{
+			ID:               uuid.NewString(),
 			Query:            query,
 			QueuedAt:         time.Now(),
 			QueuedByID:       user.ID,

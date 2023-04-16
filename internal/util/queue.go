@@ -46,7 +46,7 @@ func BuildQueueEmbed(p *domain.Player, q *domain.Queue, items []*domain.Music, p
 		}
 
 		var indexPadding int
-		if x, y := len(strconv.Itoa((page+1)*domain.QueuePageSize)), len(q.Tracks); x < y {
+		if x, y := len(strconv.Itoa((page+1)*domain.QueuePageSize)), len(q.ActiveTracks); x < y {
 			indexPadding = x
 		} else {
 			indexPadding = y
@@ -74,17 +74,25 @@ func BuildQueueEmbed(p *domain.Player, q *domain.Queue, items []*domain.Music, p
 			Fields: []*discordgo.MessageEmbedField{
 				{
 					Name:   "Size",
-					Value:  fmt.Sprintf("%d %s", len(q.Tracks), Plural("track", len(q.Tracks))),
+					Value:  fmt.Sprintf("%d %s", len(q.ActiveTracks), Plural("track", len(q.ActiveTracks))),
 					Inline: true,
 				},
 				{
 					Name:   "Page",
-					Value:  fmt.Sprintf("%d of %d", page+1, (len(q.Tracks)-1)/domain.QueuePageSize+1),
+					Value:  fmt.Sprintf("%d of %d", page+1, (len(q.ActiveTracks)-1)/domain.QueuePageSize+1),
 					Inline: true,
+				},
+				{
+					Inline: false,
 				},
 				{
 					Name:   "Repeat",
 					Value:  cases.Title(language.English).String(q.Loop.String()),
+					Inline: true,
+				},
+				{
+					Name:   "Shuffle",
+					Value:  cases.Title(language.English).String(q.Shuffle.String()),
 					Inline: true,
 				},
 			},
@@ -107,7 +115,7 @@ func BuildQueueComponent(p *domain.Player, q *domain.Queue, page int) []discordg
 		Label: "Next Page",
 		Style: discordgo.SecondaryButton,
 		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty() ||
-			page == len(q.Tracks)/domain.QueuePageSize,
+			page == len(q.ActiveTracks)/domain.QueuePageSize,
 		CustomID: common.QueueComponentNextID,
 	}
 
@@ -153,7 +161,7 @@ func ParseRelativePosOption(q *domain.Queue, raw string) (int, error) {
 		return 0, domain.ErrBadFormat
 	}
 
-	if pos < 0 || pos > len(q.Tracks)-1 {
+	if pos < 0 || pos > len(q.ActiveTracks)-1 {
 		return 0, domain.ErrQueueOutOfBounds
 	}
 

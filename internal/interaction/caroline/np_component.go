@@ -16,8 +16,9 @@ func RegisterNPComponent(srv *server.Server, interactionHandlers map[string]func
 	interactionHandlers[common.NPComponentPreviousID] = npComponentPrevious(srv)
 	interactionHandlers[common.NPComponentNextID] = npComponentNext(srv)
 	interactionHandlers[common.NPComponentTogglePlayID] = npComponentTogglePlay(srv)
-	interactionHandlers[common.CommonComponentToggleLoopID] = commonComponentToggleLoop(srv)
 	interactionHandlers[common.CommonComponentToggleQueueID] = commonComponentToggleQueue(srv)
+	interactionHandlers[common.CommonComponentToggleLoopID] = commonComponentToggleLoop(srv)
+	interactionHandlers[common.CommonComponentToggleShuffleID] = commonComponentToggleShuffle(srv)
 	return nil
 }
 
@@ -45,7 +46,7 @@ func npComponentPrevious(srv *server.Server) func(*discordgo.Session, *discordgo
 			return
 		}
 
-		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+		if !util.IsPlayerReady(p) || len(q.ActiveTracks) == 0 {
 			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
@@ -55,7 +56,7 @@ func npComponentPrevious(srv *server.Server) func(*discordgo.Session, *discordgo
 		}
 
 		// jump queue
-		err = srv.UC.Queue.Jump(q, (q.CurrentPos+len(q.Tracks)-1)%len(q.Tracks))
+		err = srv.UC.Queue.Jump(q, (q.CurrentPos+len(q.ActiveTracks)-1)%len(q.ActiveTracks))
 		if err != nil {
 			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
@@ -97,7 +98,7 @@ func npComponentNext(srv *server.Server) func(*discordgo.Session, *discordgo.Int
 			return
 		}
 
-		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+		if !util.IsPlayerReady(p) || len(q.ActiveTracks) == 0 {
 			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
@@ -107,7 +108,7 @@ func npComponentNext(srv *server.Server) func(*discordgo.Session, *discordgo.Int
 		}
 
 		// jump queue
-		err = srv.UC.Queue.Jump(q, (q.CurrentPos+1)%len(q.Tracks))
+		err = srv.UC.Queue.Jump(q, (q.CurrentPos+1)%len(q.ActiveTracks))
 		if err != nil {
 			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return
@@ -149,7 +150,7 @@ func npComponentTogglePlay(srv *server.Server) func(*discordgo.Session, *discord
 			return
 		}
 
-		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+		if !util.IsPlayerReady(p) || len(q.ActiveTracks) == 0 {
 			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
@@ -172,6 +173,39 @@ func npComponentTogglePlay(srv *server.Server) func(*discordgo.Session, *discord
 				log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 				return
 			}
+		}
+
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseUpdateMessage})
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+		}
+	}
+}
+
+func commonComponentToggleQueue(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
+	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// get player and queue
+		p, err := srv.UC.Player.Get(i.GuildID)
+		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+		q, err := srv.UC.Queue.Get(i.GuildID)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+
+		if !util.IsPlayerReady(p) || len(q.ActiveTracks) == 0 {
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
+			return
+		}
+
+		// update queue message
+		err = srv.UC.Player.UpdateNPMessage(s, p, q, -1, true, true)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
 		}
 
 		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{Type: discordgo.InteractionResponseUpdateMessage})
@@ -205,7 +239,7 @@ func commonComponentToggleLoop(srv *server.Server) func(*discordgo.Session, *dis
 			return
 		}
 
-		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+		if !util.IsPlayerReady(p) || len(q.ActiveTracks) == 0 {
 			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
@@ -242,8 +276,18 @@ func commonComponentToggleLoop(srv *server.Server) func(*discordgo.Session, *dis
 	}
 }
 
-func commonComponentToggleQueue(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
+func commonComponentToggleShuffle(srv *server.Server) func(*discordgo.Session, *discordgo.InteractionCreate) {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// check if user in voice channel
+		vs, err := util.GetUserVS(s, i, true, "You have to be in a voice channel!")
+		if errors.Is(err, discordgo.ErrStateNotFound) {
+			return
+		}
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+
 		// get player and queue
 		p, err := srv.UC.Player.Get(i.GuildID)
 		if err != nil && !errors.Is(err, domain.ErrNotPlaying) {
@@ -256,13 +300,29 @@ func commonComponentToggleQueue(srv *server.Server) func(*discordgo.Session, *di
 			return
 		}
 
-		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+		if !util.IsPlayerReady(p) || len(q.ActiveTracks) == 0 {
 			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
+		if !util.IsSameVC(p, vs) {
+			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseDifferentVC)
+			return
+		}
 
-		// update queue message
-		err = srv.UC.Player.UpdateNPMessage(s, p, q, -1, true, true)
+		// toggle shuffle
+		var newShuffleMode domain.ShuffleMode
+		switch q.Shuffle {
+		case domain.ShuffleModeOff:
+			newShuffleMode = domain.ShuffleModeOn
+		case domain.ShuffleModeOn:
+			newShuffleMode = domain.ShuffleModeOff
+		}
+		err = srv.UC.Queue.SetShuffleMode(q, newShuffleMode)
+		if err != nil {
+			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
+			return
+		}
+		err = srv.UC.Player.UpdateNPMessage(s, p, q, -1, false, true)
 		if err != nil {
 			log.Printf("%s: %s: %s\n", i.Type, util.InteractionName(i), err)
 			return

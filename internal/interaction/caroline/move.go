@@ -67,7 +67,7 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 			return
 		}
 
-		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+		if !util.IsPlayerReady(p) || len(q.ActiveTracks) == 0 {
 			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}
@@ -89,7 +89,7 @@ func moveCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 		}
 		from, to := int(f)-1, int(t)-1
 
-		if from < 0 || from > len(q.Tracks)-1 || to < 0 || to > len(q.Tracks)-1 {
+		if from < 0 || from > len(q.ActiveTracks)-1 || to < 0 || to > len(q.ActiveTracks)-1 {
 			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseInvalidPosition)
 			return
 		}

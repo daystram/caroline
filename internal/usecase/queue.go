@@ -106,6 +106,19 @@ func (u *queueUseCase) SetLoopMode(q *domain.Queue, mode domain.LoopMode) error 
 	return nil
 }
 
+func (u *queueUseCase) SetShuffleMode(q *domain.Queue, mode domain.ShuffleMode) error {
+	if q == nil {
+		return domain.ErrQueueNotFound
+	}
+
+	err := u.queueRepo.SetShuffleMode(q.GuildID, mode)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (u *queueUseCase) Clear(q *domain.Queue) error {
 	if q == nil {
 		return domain.ErrQueueNotFound
