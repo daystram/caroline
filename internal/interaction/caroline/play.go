@@ -160,7 +160,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Fields: []*discordgo.MessageEmbedField{
 					{
 						Name:   "Position",
-						Value:  fmt.Sprintf("%d to %d of %d", startPos+1, endPos, len(q.Tracks)),
+						Value:  fmt.Sprintf("%d to %d of %d", startPos+1, endPos, len(q.ActiveTracks)),
 						Inline: true,
 					},
 				},
@@ -177,7 +177,7 @@ func playCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Interac
 				Fields: []*discordgo.MessageEmbedField{
 					{
 						Name:   "Position",
-						Value:  fmt.Sprintf("%d of %d", startPos+1, len(q.Tracks)),
+						Value:  fmt.Sprintf("%d of %d", startPos+1, len(q.ActiveTracks)),
 						Inline: true,
 					},
 				},

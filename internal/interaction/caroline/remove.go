@@ -61,7 +61,7 @@ func removeCommand(srv *server.Server) func(*discordgo.Session, *discordgo.Inter
 			return
 		}
 
-		if !util.IsPlayerReady(p) || len(q.Tracks) == 0 {
+		if !util.IsPlayerReady(p) || len(q.ActiveTracks) == 0 {
 			_ = s.InteractionRespond(i.Interaction, common.InteractionResponseNotPlaying)
 			return
 		}

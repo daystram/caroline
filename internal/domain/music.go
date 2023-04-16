@@ -8,6 +8,7 @@ import (
 )
 
 type Music struct {
+	ID               string
 	Query            string
 	QueuedAt         time.Time
 	QueuedByID       string

@@ -38,7 +38,7 @@ func BuildNPEmbed(s *discordgo.Session, p *domain.Player, q *domain.Queue) ([]*d
 		startTime   time.Time
 	)
 
-	position = fmt.Sprintf("%d of %d", q.CurrentPos+1, len(q.Tracks))
+	position = fmt.Sprintf("%d of %d", q.CurrentPos+1, len(q.ActiveTracks))
 	author = &discordgo.MessageEmbedAuthor{
 		Name:    user.Username,
 		IconURL: discordgo.EndpointUserAvatar(user.ID, user.Avatar),
@@ -139,7 +139,7 @@ func BuildNPComponent(p *domain.Player, q *domain.Queue) []discordgo.MessageComp
 		Label: "Next",
 		Style: discordgo.PrimaryButton,
 		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty() ||
-			(q.CurrentPos == len(q.Tracks)-1 && q.Loop != domain.LoopModeAll),
+			(q.CurrentPos == len(q.ActiveTracks)-1 && q.Loop != domain.LoopModeAll),
 		CustomID: common.NPComponentNextID,
 	}
 
@@ -186,11 +186,26 @@ func BuildCommonComponent(p *domain.Player, q *domain.Queue) []discordgo.Message
 		toggleLoopBtn.Style = discordgo.SuccessButton
 	}
 
+	toggleShuffleBtn := discordgo.Button{
+		Disabled: p.Status == domain.PlayerStatusUninitialized || q.IsEmpty(),
+		CustomID: common.CommonComponentToggleShuffleID,
+	}
+	switch q.Shuffle {
+	case domain.ShuffleModeOff:
+		toggleShuffleBtn.Label = "Shuffle off"
+		toggleShuffleBtn.Style = discordgo.SecondaryButton
+	case domain.ShuffleModeOn:
+		toggleShuffleBtn.Emoji = discordgo.ComponentEmoji{Name: "🔀"}
+		toggleShuffleBtn.Label = "Shuffle on"
+		toggleShuffleBtn.Style = discordgo.SuccessButton
+	}
+
 	return []discordgo.MessageComponent{
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
 				toggleQueueBtn,
 				toggleLoopBtn,
+				toggleShuffleBtn,
 			},
 		},
 	}
